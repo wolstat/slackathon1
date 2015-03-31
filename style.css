@@ -159,10 +159,10 @@ input, select {
           border-right: solid 10px transparent;
       }
       #header .tabs .arrows .left.arrow {
-        background-image: url("left.png");
+        background-image: url("img/left.png");
       }
       #header .tabs .arrows .right.arrow {
-        background-image: url("right.png");
+        background-image: url("img/right.png");
       }
       #header .tabs .arrows {
         width: 15%;
