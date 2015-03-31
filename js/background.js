@@ -38,6 +38,25 @@ var _tsmSlackChromeExt = {
 							error: function(){ self.updateStatus('channelsfail'); },
 							success: function(response3){
 								self.channelData = self.indexify(response3.channels);
+								self.channelMember = [];
+								self.memberInfo = [];
+								//console.log(self.channelData);
+								for (var key in self.channelData){
+									var obj = self.channelData[key];
+									if (obj.is_member){
+										self.channelInfo = $.ajax({
+											url: self.baseUrl+"channels.info",
+											type:"get",
+											data: {token:self.authToken,
+													channel: obj.id},
+											dataType: "json",
+											error: function(){ self.updateStatus('channelsinfofail'); },
+											success: function(response4){
+												self.memberInfo.push(response4.channel);
+											}
+										})
+									}
+								}
 								console.log('channelData: '+JSON.stringify(response3));
 								console.log('channelData: success');
 								_tsmSlackChromeExt.updateStatus('connected');

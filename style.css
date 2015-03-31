@@ -135,6 +135,7 @@ body {
 #header .tabs li {
 	position: relative;
 	width: 29%;
+	height: 54px;
 	float: left;
 	color: #9b8bbb;
 	cursor: pointer;
@@ -142,6 +143,7 @@ body {
 	text-overflow: ellipsis;
 	text-align: center;
 	margin-left: 15px;
+	white-space: nowrap;
 }
 #header .tabs li.active {
 	color: #ffffff;

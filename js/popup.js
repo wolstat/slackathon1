@@ -1,11 +1,21 @@
 (function($){
 
+	var bgw = chrome.extension.getBackgroundPage(),
+		user = bgw._tsmSlackChromeExt.userData,
+		me = bgw._tsmSlackChromeExt.user,
+		mQ = bgw._tsmSlackChromeExt.messageQueue,
+		channel = bgw._tsmSlackChromeExt.channelData,
+		member = bgw._tsmSlackChromeExt.indexify(bgw._tsmSlackChromeExt.memberInfo);
+
+
 	var listUsers = {
 		init: function(){
 			var _self = this;
 			_self.bindEvents();
-			messageQueue.forEach(function(data){
-				$('#header').find('.tabs ul').append("<li class='"+ data.channel + data.ts + "'>"+ data.user +"</li>");
+			$.each(member, function(index, data){
+				if (data.unread_count > 0){
+					$('#header').find('.tabs ul').append("<li class='"+ data.id + data.last_read + "'>"+ data.name +"</li>");
+				}
 			})
 		},
 		bindEvents: function(){
@@ -28,12 +38,17 @@
 				var channel = $(this).attr('class');
 				$('#header .tabs li.active').removeClass('active');
 				$(this).addClass("active");
-				messageQueue.forEach(function(data){
-					if (data.channel + data.ts == channel){
-						var d = new Date(parseFloat(data.ts));
-						$('#content .name').text(data.user);
+				$.each(member, function(index, data){
+					if (data.id + data.last_read == channel){
+						var d = new Date(parseFloat(data.latest.ts));
+						$.each(user, function(index2, data2){
+							if (data.latest.user == data2.id){
+								$('#content .name').text(data2.real_name);
+								$('#content .pic').attr('src',data2.profile.image_192);
+							}
+						});
 						$('#content .timestamp').text( d.toLocaleDateString() + " at " + d.toLocaleTimeString());
-						$('#content .message').text(data.text);
+						$('#content .message').text(data.latest.text);
 						//$('#content .slack_open').attr('href',"https://tsmproducts.slack.com/messages/" + data.channel)
 					}
 				})
@@ -42,17 +57,14 @@
 	};
 
 	$(document).ready(function(){
-
-
-		var bgw = chrome.extension.getBackgroundPage();
 		//access bg window methods and properties like so:
 		//bgw._tsmSlackChromeExt.function();
-    var mQ = bgw._tsmSlackChromeExt.messageQueue;
-    var user = bgw._tsmSlackChromeExt.userData;
-    // access data: user[ data.user ].name
-    var channel = bgw._tsmSlackChromeExt.channelData;
-    // access data: channel[ data.channel ].name
+		// access data: user[ data.user ].name
+		// access data: channel[ data.channel ].name
 
+
+		listUsers.init();
+		displayMessage.init();
 		//this will be replaced by bg window post method
 		$('body').on('click', '.test', function(e){
 		//alert('foo');
