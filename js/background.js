@@ -1,3 +1,5 @@
+/* Michael Wolstat 2015 http://wolstat.com */
+
 var _tsmSlackChromeExt = {
 	init : function() { var self = this;
 		self.updateStatus('init');
@@ -36,7 +38,7 @@ var _tsmSlackChromeExt = {
 							error: function(){ self.updateStatus('channelsfail'); },
 							success: function(response3){
 								self.channelData = self.indexify(response3.channels);
-								//console.log('channelData: '+JSON.stringify(response3));
+								console.log('channelData: '+JSON.stringify(response3));
 								console.log('channelData: success');
 								_tsmSlackChromeExt.updateStatus('connected');
 							}
@@ -60,11 +62,8 @@ var _tsmSlackChromeExt = {
 	    console.log("incoming message! --- "+evt.data);
 	    //message filters: non-message, messages from self, and intial 'reply_to' messages
 	    if ( eObj.type === 'message' && eObj.user !== _tsmSlackChromeExt.user && typeof eObj.reply_to === 'undefined' ) {
-	    	_tsmSlackChromeExt.messageCount++;
-	    	_tsmSlackChromeExt.updateStatus('message');
+	    	_tsmSlackChromeExt.addToQueue(eObj);
 	    	//replace message in existing channel with new one? log channel count?
-	    	//console.log("typeof eObj.reply_to: "+ typeof eObj.reply_to);
-	    	// add to messageQueue[]
 	    } else if ( eObj.type === 'channel_marked' ) {
 	    	_tsmSlackChromeExt.unmarkChannel( eObj.channel );
 	    }
@@ -74,6 +73,15 @@ var _tsmSlackChromeExt = {
 
 		chrome.browserAction.setBadgeText({ text: ct+this.statuses[state].suffix });
 		chrome.browserAction.setBadgeBackgroundColor({ color:this.statuses[state].color }); //[155, 139, 187, 255]
+  	},
+  	// push message to queue
+	addToQueue : function( message ){
+		var type = 'message'; //filter here for 'direct' & 'mention'
+		//add flags for 'edited' and 'urgency'
+		//also re-map edited data to 
+		this.messageQueue.push(message);
+		this.updateStatus('message');
+
   	},
   	// pull all messages from a read channel out of queue
 	unmarkChannel : function( channel ){

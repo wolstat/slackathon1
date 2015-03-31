@@ -47,8 +47,11 @@
 		var bgw = chrome.extension.getBackgroundPage();
 		//access bg window methods and properties like so:
 		//bgw._tsmSlackChromeExt.function();
-		//bgw._tsmSlackChromeExt.messageQueue;
-
+    var mQ = bgw._tsmSlackChromeExt.messageQueue;
+    var user = bgw._tsmSlackChromeExt.userData;
+    // access data: user[ data.user ].name
+    var channel = bgw._tsmSlackChromeExt.channelData;
+    // access data: channel[ data.channel ].name
 
 		//this will be replaced by bg window post method
 		$('body').on('click', '.test', function(e){
