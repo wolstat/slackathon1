@@ -41,9 +41,11 @@
           <li>First</li>
           <li>Second</li>
           <li>Third</li>
-          <li class="left arrow"></li>
-          <li class="right arrow last"></li>
         </ul>
+		  <div class="arrows">
+			  <div class="left arrow"></div>
+			  <div class="right arrow"></div>
+		  </div>
       </div>
     </div>
     <div id="content">
@@ -52,13 +54,14 @@
           <div>
             <span class="name">First Name Last Name</span>
             <span class="timestamp">Today at 11:15am</span>
-            <span class="close"><img src="img/close.png"></span>
+            <div class="close"></div>
           </div>
           <span class="message">This is your very first message.</span>
         </div>
         <textarea id="msg" placeholder="Enter quick reply"></textarea>
         <button type="button" class="test">Add Reply</button>
-    </div>
+		<a href="https://tsmproducts.slack.com/messages/" target="_blank" class="slack_open">Open in Slack<img src="img/hashtaglogo.png"></a>
+	</div>
     <img id="image-result" hidden>
  
     <!-- button onclick="hello( 'slack' ).login()">SLACK</button>
