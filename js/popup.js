@@ -6,18 +6,13 @@
   $(document).ready(function(){
 
 
+  var bgw = chrome.extension.getBackgroundPage();
+  //access bg window methods and properties like so:
+  //bgw._tsmSlackChromeExt.function();
+  //bgw._tsmSlackChromeExt.messageQueue;
 
 
-//https://slack.com/api/chat.postMessage
-//U033Z49JK wolstat id
-  //$('body').on('click', '.addcomment .sendform', function(e){
-    //alert('foo');
-
-
-  
-  //});
-
-
+  //this will be replaced by bg window post method
   $('body').on('click', '.test', function(e){
     //alert('foo');
     var method = "chat.postMessage";
@@ -35,8 +30,6 @@
 },
       dataType: "json"
     }).done( function(response){
-      //console.log("base+method+token: "+JSON.stringify(response)); //full project doc - update $scope var?
-      //location.reload();
       $('#response').html(JSON.stringify(response))
     });
 

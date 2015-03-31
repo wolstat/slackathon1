@@ -1,28 +1,6 @@
 var _tsmSlackChromeExt = {
 	init : function() { var self = this;
 		self.updateStatus('init');
-/*
-		self.ajax( this.baseUrl+"rtm.start", function(rtmResult){
-
-			self.rtmData = self.indexify(rtmResult);
-			console.log('rtmData: '+JSON.stringify( self.rtmData ));
-
-			self.ws = new window['WebSocket']( self.rtmData[ self.rtmData['0'] ] );
-			self.ws.onopen = self.onopen;
-			self.ws.onclose = self.onclose;
-			self.ws.onmessage = self.onmessage;
-
-			self.ajax( self.baseUrl+"users.list?token="+self.authToken, function(userResult){
-				//self.userData = self.indexify(userResult.members);
-
-				console.log("userData: "+JSON.stringify(self.userData));
-
-
-
-			});
-
-		});
-	*/
 		self.rtmRequest = $.ajax({
 			url: this.baseUrl+"rtm.start",
 			type: "get",
@@ -34,11 +12,11 @@ var _tsmSlackChromeExt = {
 				//console.log('rtmData: '+JSON.stringify( self.rtmData ));
 				console.log('rtm: success');
 
-				self.ws = new window.WebSocket( self.rtmData[ self.rtmData['0'] ] );
-				self.ws.onopen = self.onopen;
-				self.ws.onclose = self.onclose;
-				self.ws.onmessage = self.onmessage;
-				self.ws.send = self.send;
+				self.wss = new window.WebSocket( self.rtmData[ self.rtmData['0'] ] ); //wss
+				self.wss.onopen = self.onopen;
+				self.wss.onclose = self.onclose;
+				self.wss.onmessage = self.onmessage;
+				self.wss.send = self.send;
 
 				self.userRequest = $.ajax({
 					url: self.baseUrl+"users.list",
@@ -68,31 +46,28 @@ var _tsmSlackChromeExt = {
 			}
 		});
 	},
-
-
- 
-// We need to stringify it through JSON before sending it to the server
-/*ws.send();
-*/
-
 	onopen : function () { //wss
 	    console.log("Connection with server open.");
 	},
 	onclose : function () { //wss
-	    console.log("Connection with server closed; Maybe the server wasn't found, it shut down or you're behind a firewall/proxy.");
+	    console.log("Connection with server closed.");
+	},
+	send : function (message, channel) { //wss
+		return "{'as_user':true,'type':'message','channel','"+channel+"', 'text':'"+message+"'}";
 	},
 	onmessage : function (evt) { //wss
 	    var eObj = $.parseJSON(evt.data);
 	    console.log("incoming message! --- "+evt.data);
-	    if ( eObj.type === 'message' && eObj.user !== _tsmSlackChromeExt.userID ) { // // && eObj.reply_to === 'undefined'
+	    //message filters: non-message, messages from self, and intial 'reply_to' messages
+	    if ( eObj.type === 'message' && eObj.user !== _tsmSlackChromeExt.user && typeof eObj.reply_to === 'undefined' ) {
 	    	_tsmSlackChromeExt.messageCount++;
 	    	_tsmSlackChromeExt.updateStatus('message');
+	    	//replace message in existing channel with new one? log channel count?
+	    	//console.log("typeof eObj.reply_to: "+ typeof eObj.reply_to);
 	    	// add to messageQueue[]
+	    } else if ( eObj.type === 'channel_marked' ) {
+	    	_tsmSlackChromeExt.unmarkChannel( eObj.channel );
 	    }
-	    //mark all as read from this channel {"type":"channel_marked","channel":"C0458GXEA","ts":"1427776180.000841"}
-	},
-	send : function (message, channel) { //wss
-		return "{'as_user':true,'type':'message','channel','"+channel+"', 'text':'"+message+"'}";
 	},
 	updateStatus : function( state ){
 		var ct = ( this.messageCount < 1 ) ? "" : (this.messageCount + "");
@@ -100,9 +75,18 @@ var _tsmSlackChromeExt = {
 		chrome.browserAction.setBadgeText({ text: ct+this.statuses[state].suffix });
 		chrome.browserAction.setBadgeBackgroundColor({ color:this.statuses[state].color }); //[155, 139, 187, 255]
   	},
+  	// pull all messages from a read channel out of queue
+	unmarkChannel : function( channel ){
+		var mQ = this.messageQueue, 
+		entry, result = [];
+		for (entry in mQ) { if ( mQ[entry].channel !== channel ) {
+			result.push( mQ[entry] );
+		}}
+		mQ = result;
+  	},
   	user : 'U033Z49JK', //need to set dynamically
-  	messageCount : 0, // init always has a "reply_to" message right away, hence -1
 	authToken : "xoxp-3118431681-3135145631-4229637403-9444ae", //need to set dynamically
+  	messageCount : 0, // init always has a "reply_to" message right away, hence -1
 	baseUrl : "https://slack.com/api/",
 	messageQueue : [],
 	statuses : {
@@ -147,29 +131,10 @@ var _tsmSlackChromeExt = {
 			suffix:'#'
 		}
 	},
-	ajax : function ( url, cb ) {
-	    var xmlhttp = new XMLHttpRequest();
-	    xmlhttp.onreadystatechange = function() {
-	        if (xmlhttp.readyState == 4 ) {
-	           if(xmlhttp.status == 200){
-	               //console.log( "ajax "+url+": "+ );
-	               cb(xmlhttp.responseText);
-	           }
-	           else if(xmlhttp.status == 400) {
-	              console.log( 'There was an error 400')
-	           }
-	           else {
-	               console.log( 'something else other than 200 was returned')
-	           }
-	        }
-	    }
-	    xmlhttp.open("GET", url, true);
-	    xmlhttp.send();
-	},
 	//take array of objects and return same data with unique ID keys
 	indexify : function( dataset, idField ) {
 		//console.log("I am in phonecatFilters !!!!!!!!!"+allProj[0]._id);
-		var idField = ( typeof idField === 'undefined' ) ? 'id' : idField; //no value defaults to 'id' 
+		var idField = ( typeof idField === 'undefined' ) ? 'id' : idField; //unset idField defaults to 'id' 
 		var entry, results = {};
 		for (entry in dataset) {
 			results[ dataset[entry][idField] ] = dataset[entry];
