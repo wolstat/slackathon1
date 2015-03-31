@@ -1,0 +1,69 @@
+<!doctype html>
+<!--
+ This page is shown when the extension button is clicked, because the
+ "browser_action" field in manifest.json contains the "default_popup" key with
+ value "popup.html".
+ -->
+<html>
+  <head>
+    <title>Getting Started Extension's Popup</title>
+    <style>
+      body {
+        font-family: "Segoe UI", "Lucida Grande", Tahoma, sans-serif;
+        font-size: 100%;
+      }
+      #status {
+        /* avoid an excessively wide status text */
+        white-space: pre;
+        text-overflow: ellipsis;
+        overflow: hidden;
+        max-width: 400px;
+      }
+    </style>
+
+    <!--
+      - JavaScript and HTML must be in separate files: see our Content Security
+      - Policy documentation[1] for details and explanation.
+      -
+      - [1]: https://developer.chrome.com/extensions/contentSecurityPolicy
+     -->
+    <link rel="stylesheet" href="style.css">
+    <script src="//code.jquery.com/jquery-2.0.3.min.js"></script>
+    <script src="js/popup.js"></script>
+    <!-- script src="js/hello.js"></script -->
+    <!-- script src="js/background.js"></script -->
+  </head>
+  <body>
+     <div id="header">
+      <div class="tabs">
+        <ul>
+          <li>First</li>
+          <li>Second</li>
+          <li>Third</li>
+          <li class="left arrow"></li>
+          <li class="right arrow last"></li>
+        </ul>
+      </div>
+    </div>
+    <div id="content">
+        <div class="user">
+          <img class="pic" src="">
+          <div>
+            <span class="name">First Name Last Name</span>
+            <span class="timestamp">Today at 11:15am</span>
+            <span class="close"><img src="close.png"></span>
+          </div>
+          <span class="message">This is your very first message.</span>
+        </div>
+        <textarea id="msg" placeholder="Enter quick reply"></textarea>
+        <button type="button" class="test">Add Reply</button>
+    </div>
+    <img id="image-result" hidden>
+ 
+    <!-- button onclick="hello( 'slack' ).login()">SLACK</button>
+    <div id="profile_slack"></div>
+    <a href="#">hello</a -->
+  <div id="response"></div>
+  </body>
+</html>
+
