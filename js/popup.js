@@ -40,14 +40,20 @@
 				$(this).addClass("active");
 				$.each(member, function(index, data){
 					if (data.id + data.last_read == channel){
-						var d = new Date(parseFloat(data.latest.ts));
+						var d = new Date(parseFloat(data.latest.ts) * 1000);
+						var today = new Date();
 						$.each(user, function(index2, data2){
 							if (data.latest.user == data2.id){
 								$('#content .name').text(data2.real_name);
 								$('#content .pic').attr('src',data2.profile.image_192);
 							}
 						});
-						$('#content .timestamp').text( d.toLocaleDateString() + " at " + d.toLocaleTimeString());
+						if (d.toLocaleDateString() == today.toLocaleDateString()){
+							$('#content .timestamp').text("Today at " + d.toLocaleTimeString());
+						}
+						else {
+							$('#content .timestamp').text( d.toLocaleDateString() + " at " + d.toLocaleTimeString());
+						}
 						$('#content .message').text(data.latest.text);
 						//$('#content .slack_open').attr('href',"https://tsmproducts.slack.com/messages/" + data.channel)
 					}
