@@ -9,7 +9,7 @@ var bg = chrome.extension.getBackgroundPage()._tsmSlackChromeExt,
     cc = bg.convos,
     channel = bg.channelData,
     member = bg.indexify(bg.memberInfo);
-	bg.setPopWin( window );
+
 }
 
     //bg.getConvos() //loop through unread convo list and update header display
@@ -84,19 +84,46 @@ if ( chrome.extension ) {
 
 		listUsers.init();
 		displayMessage.init();
-		bg.jQ = $;
-
+		bg.setPopEnv( window, $);
 		$( window ).unload(function() {
-			bg.updateBadge('blah');
+			bg.unsetPopEnv();
 		});
-	
 
 
     $('body').on('click', 'nav.nav button', function(e){
       bg.displayPanel(e.target.className);
     });
 
+
+	$.fn.serializeObject = function(){
+	    var o = {};
+	    var a = this.serializeArray();
+	    $.each(a, function() {
+	        if (o[this.name] !== undefined) {
+	            if (!o[this.name].push) {
+	                o[this.name] = [o[this.name]];
+	            }
+	            o[this.name].push(this.value || '');
+	        } else {
+	            o[this.name] = this.value || '';
+	        }
+	    });
+	    return o;
+	};
+
+	$(function() {
+	    $('form#preferences').submit( function() {
+	        bg.saveAuth( $('form#preferences').serializeObject() );
+	        return false;
+	    });
+	});
+
 } //chrome
+
+		$('body').on('click', '#clearPrefs', function(e){
+			bg.clearPrefs( );
+		});
+
 
 		//this will be replaced by bg window post method
 		$('body').on('click', '.test', function(e){

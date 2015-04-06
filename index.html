@@ -100,28 +100,32 @@
     <main>
       <form id="preferences">
         <div class="form-group">
-          <label class="col-md-3 control-label" for="uid">Slack User ID</label>
+          <label class="col-md-3 control-label" for="userId">Slack User ID</label>
           <div class="col-md-6">
-            <input id="uid" name="uid" type="text" class="form-control">
+            <input value="" id="userId" name="userId" type="text" class="form-control">
           </div>
         </div>
         <div class="form-group">
-          <label class="col-md-3 control-label" for="token">Slack Auth Token</label>
+          <label class="col-md-3 control-label" for="authToken">Slack Auth Token</label>
           <div class="col-md-6">
-            <input id="token" name="token" type="text" class="form-control">
+            <input value="" id="authToken" name="authToken" type="text" class="form-control">
           </div>
         </div>
         <div class="form-group">
         <div class="col-md-3"></div>
         <div class="col-md-6">
-          <button class="btn btn-primary">Save</button>
+          <button class="btn btn-primary">Start Session</button>
         </div>
       </form>
+                <button id="clearPrefs" class="btn btn-primary">Clear Prefs</button>
+
+      <p>Authenticated as : [display User Name]</p>
       <p>Your filter terms are : [display filter terms]</p>
-      <form>
+      <!-- form>
       <textarea maxlength="260" id="msg" placeholder="Enter quick reply"></textarea>
       <button type="button" class="test">Add Reply</button>
-      </form>
+      </form -->
+      <button id="reinit" class="btn btn-primary">Re-initialize Extension</button>
     </header>
   </section>
 </div><!-- #sections -->
