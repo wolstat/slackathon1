@@ -5,66 +5,126 @@
  value "popup.html".
  -->
 <html>
-  <head>
-    <script src="js/jquery-2.1.3.min.js"></script>
-    <title>Getting Started Extension's Popup</title>
-    <style>
-      body {
-        font-family: "Segoe UI", "Lucida Grande", Tahoma, sans-serif;
-        font-size: 100%;
-      }
-      #status {
-        /* avoid an excessively wide status text */
-        white-space: pre;
-        text-overflow: ellipsis;
-        overflow: hidden;
-        max-width: 400px;
-      }
-    </style>
+<head>
+<script src="js/jquery-2.1.3.min.js"></script>
+<title>Getting Started Extension's Popup</title>
+<style>
+  body {
+    font-family: "Segoe UI", "Lucida Grande", Tahoma, sans-serif;
+    font-size: 100%;
+  }
+  #status {
+    /* avoid an excessively wide status text */
+    white-space: pre;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    max-width: 400px;
+  }
+</style>
 
-    <!--
-      - JavaScript and HTML must be in separate files: see our Content Security
-      - Policy documentation[1] for details and explanation.
-      -
-      - [1]: https://developer.chrome.com/extensions/contentSecurityPolicy
-     -->
-    <link rel="stylesheet" href="style.css">
-    <!-- script src="//code.jquery.com/jquery-2.0.3.min.js"></script -->
-    <script src="js/popup.js"></script>
-    <!-- script src="js/hello.js"></script -->
-    <!-- script src="js/background.js"></script -->
-  </head>
-  <body>
-     <div id="header">
+<!--
+  - JavaScript and HTML must be in separate files: see our Content Security
+  - Policy documentation[1] for details and explanation.
+  -
+  - [1]: https://developer.chrome.com/extensions/contentSecurityPolicy
+ -->
+<link rel="stylesheet" href="style.css">
+<!-- script src="//code.jquery.com/jquery-2.0.3.min.js"></script -->
+<script src="js/popup.js"></script>
+<!-- script src="js/hello.js"></script -->
+<!-- script src="js/background.js"></script -->
+</head>
+<body>
+
+<nav class="nav">
+  <button type="button" class="convo">Convo</button>
+  <button type="button" class="users">Users</button>
+  <button type="button" class="prefs">Prefs</button>
+</nav>
+<div id="sections">
+
+  <section id="convo">
+    <header>
       <div class="tabs">
         <ul>
         </ul>
-		  <div class="arrows">
-			  <div class="left arrow"></div>
-			  <div class="right arrow"></div>
-		  </div>
-      </div>
-    </div>
-    <div id="content">
-        <div class="user">
-          <img class="pic" src="">
-          <div>
-            <span class="name">First Name Last Name</span>
-            <span class="timestamp">Today at 11:15am</span>
-            <div class="close"></div>
-          </div>
-          <span class="message">This is your very first message.</span>
+        <div class="arrows">
+          <div class="left arrow"></div>
+          <div class="right arrow"></div>
         </div>
-        <textarea maxlength="260" id="msg" placeholder="Enter quick reply"></textarea>
-        <button type="button" class="test">Add Reply</button>
-		<a href="https://tsmproducts.slack.com/messages/" target="_blank" class="slack_open">Open in Slack<img src="img/hashtaglogo.png"></a>
-	</div>
-    <img id="image-result" hidden>
- 
-    <!-- button onclick="hello( 'slack' ).login()">SLACK</button>
-    <div id="profile_slack"></div>
-    <a href="#">hello</a -->
-  <div id="response"></div>
-  </body>
+      </div>
+    </header>
+    <main>
+      <div class="user">
+        <img class="pic" src="">
+        <div>
+          <span class="name">First Name Last Name</span>
+          <span class="timestamp">Today at 11:15am</span>
+          <div class="close"></div>
+        </div>
+        <span class="message">This is your very first message.</span>
+      </div>
+      <textarea maxlength="260" id="msg" placeholder="Enter quick reply"></textarea>
+      <button type="button" class="test">Add Reply</button>
+      <a href="https://tsmproducts.slack.com/messages/" target="_blank" class="slack_open">Open in Slack<img src="img/hashtaglogo.png"></a>
+    </main>
+  </section>
+
+  <section id="users">
+    <header>
+      <div class="tabs">
+        <ul>
+        </ul>
+        <div class="arrows">
+          <div class="left arrow"></div>
+          <div class="right arrow"></div>
+        </div>
+      </div>
+    </header>
+    <main>
+    <h3>Users Panel</h3>
+    </main>
+  </section>
+
+  <section id="prefs">
+    <header>
+      <div class="tabs">
+        <ul>
+        </ul>
+        <div class="arrows">
+          <div class="left arrow"></div>
+          <div class="right arrow"></div>
+        </div>
+      </div>
+    </header>
+    <main>
+      <form id="preferences">
+        <div class="form-group">
+          <label class="col-md-3 control-label" for="uid">Slack User ID</label>
+          <div class="col-md-6">
+            <input id="uid" name="uid" type="text" class="form-control">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="col-md-3 control-label" for="token">Slack Auth Token</label>
+          <div class="col-md-6">
+            <input id="token" name="token" type="text" class="form-control">
+          </div>
+        </div>
+        <div class="form-group">
+        <div class="col-md-3"></div>
+        <div class="col-md-6">
+          <button class="btn btn-primary">Save</button>
+        </div>
+      </form>
+      <p>Your filter terms are : [display filter terms]</p>
+      <form>
+      <textarea maxlength="260" id="msg" placeholder="Enter quick reply"></textarea>
+      <button type="button" class="test">Add Reply</button>
+      </form>
+    </header>
+  </section>
+</div><!-- #sections -->
+</body>
 </html>
 

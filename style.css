@@ -104,6 +104,8 @@ input, select {
 
 /* end reset */
 
+
+
 li ul, li ol {
 	margin:0 1.5em;
 }
@@ -120,19 +122,50 @@ body {
 	font-size: 100%;
 	width: 420px;
 }
-#header {
+
+nav.nav{
+  position:absolute;
+  top:0;
+  left:30%;
+  margin-left:8px;
+}
+nav.nav button{
+  display:inline;
+  height:20px;
+  width:40px;
+}
+section{
+	min-height:300px;
+}
+
+section main{
+  padding: 15px;
+}
+section main::after {
+  content: '';
+  clear: both;
+  display: block;
+}
+
+
+#users, #convo{
+	display:none;
+}
+
+
+section header{
 	height: 54px;
 	background-color: #462973;
-	line-height: 54px;
 }
-#header .tabs ul {
+section#convo header.tabs ul {
 	list-style: none;
 	width: 85%;
 	height: 54px;
 	overflow: hidden;
 	float: left;
+	line-height: 54px;
 }
-#header .tabs li {
+section#convo header.tabs li {
 	position: relative;
 	width: 29%;
 	height: 54px;
@@ -145,10 +178,10 @@ body {
 	margin-left: 15px;
 	white-space: nowrap;
 }
-#header .tabs li.active {
+section#convo header.tabs li.active {
 	color: #ffffff;
 }
-#header .tabs li.active:after {
+section#convo header.tabs li.active:after {
 	content:'';
 	position: absolute;
 	bottom: 0;
@@ -161,25 +194,25 @@ body {
 	border-left: solid 10px transparent;
 	border-right: solid 10px transparent;
 }
-#header .tabs .arrows .left.arrow {
+section#convo header.tabs .arrows .left.arrow {
 	background-image: url("img/left.png");
 }
-#header .tabs .arrows .left.arrow:hover {
+section#convo header.tabs .arrows .left.arrow:hover {
 	background-image: url("img/left_white.png");
 }
-#header .tabs .arrows .right.arrow {
+section#convo header.tabs .arrows .right.arrow {
 	background-image: url("img/right.png");
 }
-#header .tabs .arrows .right.arrow:hover {
+section#convo header.tabs .arrows .right.arrow:hover {
 	background-image: url("img/right_white.png");
 }
-#header .tabs .arrows {
+section#convo header.tabs .arrows {
 	width: 13%;
 	float: right;
 	cursor: pointer;
 	margin-right: 5px;
 }
-#header .tabs .arrows .arrow {
+section#convo header.tabs .arrows .arrow {
 	width: 50%;
 	margin-left: 0px;
 	background-repeat: no-repeat;
@@ -187,28 +220,19 @@ body {
 	height: 54px;
 	float: left;
 }
-
-#content {
-	padding: 15px;
-}
-#content::after {
-	content: '';
-	clear: both;
-	display: block;
-}
-#content .user {
+section#convo main .user {
 	height: 50px;
 	margin-bottom: 15px;
 }
-#content .user span {
+section#convo main .user span {
 	line-height: 25px;
 }
-#content .user .timestamp {
+section#convo main .user .timestamp {
 	color: #cccccc;
 	font-size: 10px;
 	margin-left: 10px;
 }
-#content .user .close {
+section#convo main .user .close {
 	float: right;
 	cursor: pointer;
 	width: 17px;
@@ -218,27 +242,27 @@ body {
 	background-image: url("img/close.png");
 
 }
-#content .user .close:hover {
+section#convo main .user .close:hover {
 	background-image: url("img/close_dark.png");
 }
-#content .pic {
+section#convo main .pic {
 	width: 50px;
 	height: 50px;
 	float: left;
 	margin-right: 15px;
 	border-radius: 5px;
 }
-#content .message {
+section#convo main .message {
 	font-weight: 300;
 }
-#content textarea {
+section#convo main textarea {
 	width: 100%;
 	height: 65px;
 	margin-bottom: 15px;
 	box-sizing: border-box;
 	padding: 8px 10px;
 }
-#content button {
+section#convo main button {
 	background-color: #462973;
 	border-radius: 5px;
 	border: none;
@@ -247,13 +271,13 @@ body {
 	width: 85px;
         float: left;
 }
-#content .slack_open{
+section#convo main .slack_open{
 	float: right;
 	color: #cccccc;
 	line-height: 35px;
 	text-decoration: none;
 }
-#content .slack_open img{
+section#convo main .slack_open img{
 	float: right;
 	margin-left: 10px;
 }

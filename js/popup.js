@@ -1,12 +1,23 @@
 (function($){
 
-	var bgw = chrome.extension.getBackgroundPage(),
-		user = bgw._tsmSlackChromeExt.userData,
-		me = bgw._tsmSlackChromeExt.user,
-		mQ = bgw._tsmSlackChromeExt.messageQueue,
-		channel = bgw._tsmSlackChromeExt.channelData,
-		member = bgw._tsmSlackChromeExt.indexify(bgw._tsmSlackChromeExt.memberInfo);
+if ( chrome.extension ) {
+var bg = chrome.extension.getBackgroundPage()._tsmSlackChromeExt,
+    user = bg.userData,
+    me = bg.user,
+    mQ = bg.message,
+    mm = bg.messages,
+    cc = bg.convos,
+    channel = bg.channelData,
+    member = bg.indexify(bg.memberInfo);
+	bg.setPopWin( window );
+}
 
+    //bg.getConvos() //loop through unread convo list and update header display
+    //bg.sendMessage( message, convo ) //send message to slack convo
+    //bg.switchPanel( panel )//switch between users status, preference and convo panes
+    //bg.savePrefs( data ) //save k/v pairs of prefs // uid/token to start
+    //
+    //
 
 	var listUsers = {
 		init: function(){
@@ -29,6 +40,7 @@
 	};
 
 	var displayMessage = {
+		foo : function(){ alert("displayMessage.foo") },
 		init: function(){
 			var _self = this;
 			_self.bindEvents();
@@ -68,15 +80,30 @@
 		// access data: user[ data.user ].name
 		// access data: channel[ data.channel ].name
 
+if ( chrome.extension ) {
 
 		listUsers.init();
 		displayMessage.init();
+		bg.jQ = $;
+
+		$( window ).unload(function() {
+			bg.updateBadge('blah');
+		});
+	
+
+
+    $('body').on('click', 'nav.nav button', function(e){
+      bg.displayPanel(e.target.className);
+    });
+
+} //chrome
+
 		//this will be replaced by bg window post method
 		$('body').on('click', '.test', function(e){
-		//alert('foo');
 			var method = "chat.postMessage";
 			var token = "?token=xoxp-3118431681-3135145631-4229637403-9444ae";
-			var msg = $('#msg').val();
+			var msg = 'test';// document.getElementById('msg').value; //$('#msg').val();
+		console.log("click:"+typeof msg+"::"+msg.length);
 			var request = $.ajax({
 				url: "https://slack.com/api/"+method+token,
 				type: "get",
@@ -92,6 +119,8 @@
 				$('#response').html(JSON.stringify(response))
 			});
 		});
+
+
 	});
 })(jQuery);
 
