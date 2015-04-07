@@ -281,3 +281,13 @@ section#convo main .slack_open img{
 	float: right;
 	margin-left: 10px;
 }
+form#preferences input{
+	width:100%;
+}
+section#users main img{
+	border:solid 2px #3A3;
+}
+section#users main img.away{
+	opacity:0.5;
+	border:solid 2px #A33;
+}

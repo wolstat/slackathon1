@@ -1,15 +1,12 @@
 (function($){
 
 if ( chrome.extension ) {
-var bg = chrome.extension.getBackgroundPage()._tsmSlackChromeExt,
-    user = bg.userData,
-    me = bg.user,
-    mQ = bg.message,
-    mm = bg.messages,
-    cc = bg.convos,
-    channel = bg.channelData,
-    member = bg.indexify(bg.memberInfo);
-
+	var bg = chrome.extension.getBackgroundPage()._tsmSlackChromeExt,
+    me = bg.rtm.self,
+    mQ = bg.rtm.messages,
+    cc = bg.rtm.convos,
+    channel = bg.rtm.channels,
+    users = bg.rtm.users;
 }
 
     //bg.getConvos() //loop through unread convo list and update header display
@@ -17,7 +14,7 @@ var bg = chrome.extension.getBackgroundPage()._tsmSlackChromeExt,
     //bg.switchPanel( panel )//switch between users status, preference and convo panes
     //bg.savePrefs( data ) //save k/v pairs of prefs // uid/token to start
     //
-    //
+/*
 
 	var listUsers = {
 		init: function(){
@@ -73,7 +70,7 @@ var bg = chrome.extension.getBackgroundPage()._tsmSlackChromeExt,
 			})
 		}
 	};
-
+*/
 	$(document).ready(function(){
 		//access bg window methods and properties like so:
 		//bgw._tsmSlackChromeExt.function();
@@ -82,17 +79,28 @@ var bg = chrome.extension.getBackgroundPage()._tsmSlackChromeExt,
 
 if ( chrome.extension ) {
 
-		listUsers.init();
-		displayMessage.init();
+		//listUsers.init();
+		//displayMessage.init();
 		bg.setPopEnv( window, $);
 		$( window ).unload(function() {
 			bg.unsetPopEnv();
 		});
 
 
-    $('body').on('click', 'nav.nav button', function(e){
+    $(document).on('click', 'nav.nav button', function(e){
       bg.displayPanel(e.target.className);
     });
+
+	$(document).on('click', '#header .tabs li', function(e) {
+		bg.displayMessage(e.target.className);
+	});
+
+			$(document).on('click', '#header .tabs .left.arrow', function(e){
+				$('.tabs ul').prepend($(".tabs ul>li:last"));
+			});
+			$(document).on('click', '#header .tabs .right.arrow', function(e){
+				$('.tabs ul').append($(".tabs ul>li:first"));
+			});
 
 
 	$.fn.serializeObject = function(){
@@ -118,12 +126,12 @@ if ( chrome.extension ) {
 	    });
 	});
 
-} //chrome
-
 		$('body').on('click', '#clearPrefs', function(e){
-			bg.clearPrefs( );
+			bg.clearPrefs();
 		});
 
+
+} //chrome
 
 		//this will be replaced by bg window post method
 		$('body').on('click', '.test', function(e){

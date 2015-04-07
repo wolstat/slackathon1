@@ -72,6 +72,7 @@
 
   <section id="users">
     <header>
+      <h3>Users Panel</h3>
       <div class="tabs">
         <ul>
         </ul>
@@ -82,7 +83,6 @@
       </div>
     </header>
     <main>
-    <h3>Users Panel</h3>
     </main>
   </section>
 
@@ -99,12 +99,12 @@
     </header>
     <main>
       <form id="preferences">
-        <div class="form-group">
+        <!-- div class="form-group">
           <label class="col-md-3 control-label" for="userId">Slack User ID</label>
           <div class="col-md-6">
             <input value="" id="userId" name="userId" type="text" class="form-control">
           </div>
-        </div>
+        </div -->
         <div class="form-group">
           <label class="col-md-3 control-label" for="authToken">Slack Auth Token</label>
           <div class="col-md-6">
@@ -117,7 +117,10 @@
           <button class="btn btn-primary">Start Session</button>
         </div>
       </form>
-                <button id="clearPrefs" class="btn btn-primary">Clear Prefs</button>
+
+      <br>
+      <br>
+      <button id="clearPrefs" class="btn btn-primary">Clear Prefs</button>
 
       <p>Authenticated as : [display User Name]</p>
       <p>Your filter terms are : [display filter terms]</p>
