@@ -5,8 +5,9 @@
 //TODO: loop through new RTM data and mark unreads
 //TODO: logic to detect a stale session and restart
 
-//TODO: update users.presence
-
+//TODO: clear convo from ext back to slack
+//TODO: update users.presence, sort list by last active time
+//TODO: get messages to send through the wss
 
 //TODO: updateBadge needs to calculate status, not be passed it
 //TODO: deeplink to channel https://tsmproducts.slack.com/messages/collab-room/
@@ -20,7 +21,7 @@ var _tsmSlackChromeExt = {
 		self.getPrefs( function(result) {
 			var prefs = result.prefs;
 			self.log('getPrefs success: result'+JSON.stringify(prefs));
-			if ( prefs.authToken && prefs.authToken !== null ) {
+			if ( typeof prefs !== 'undefined' && prefs.authToken && prefs.authToken !== null ) {
 				self.saveAuth( prefs );
 			} else {
 				self.getToken();
@@ -58,9 +59,9 @@ var _tsmSlackChromeExt = {
 				//self.userId = response.self.id;
 				//self.prefs.filters = response.self.prefs.highlight_words;
 				self.wss = new window.WebSocket( response.url ); //wss
-				self.wss.onopen = self.wssOpen;
-				self.wss.onclose = self.wssClose;
-				self.wss.onmessage = self.wssEvent;
+				self.wss.onopen = self.wssOnOpen;
+				self.wss.onclose = self.wssOnClose;
+				self.wss.onmessage = self.wssOnEvent;
 				self.wss.send = self.wssSend;
 				//cb();
 				//self.init();
@@ -117,11 +118,11 @@ var _tsmSlackChromeExt = {
 			}
 		});
 	}, */
-	wssOpen : function () { //wss
+	wssOnOpen : function () { //wss
 		_tsmSlackChromeExt.updateBadge('connected');
 	    _tsmSlackChromeExt.log("Connection with server open.");
 	},
-	wssClose : function () { //wss
+	wssOnClose : function () { //wss
 		_tsmSlackChromeExt.updateBadge('disconnected');
 		_tsmSlackChromeExt.switchPanel('prefs');
 	    _tsmSlackChromeExt.log("Connection with server closed.");
@@ -129,7 +130,7 @@ var _tsmSlackChromeExt = {
 	wssSend : function (message, channel) { //wss
 		return "{'as_user':true,'type':'message','channel','"+channel+"', 'text':'"+message+"'}";
 	},
-	wssEvent : function (evt) { //wss
+	wssOnEvent : function (evt) { //wss
 	    var eObj = $.parseJSON(evt.data);
 	    _tsmSlackChromeExt.log("--- evt.data "+evt.data);
 	    //message filters: non-message, messages from self, and intial 'reply_to' messages
@@ -139,8 +140,13 @@ var _tsmSlackChromeExt = {
 	    } else if ( eObj.type === 'channel_marked' ) {
 	    	_tsmSlackChromeExt.unmarkChannel( eObj );
 	    	_tsmSlackChromeExt.updateBadge('message');
+	    } else if ( eObj.type === 'presence_change' ) {
+	    	_tsmSlackChromeExt.updateObject(_tsmSlackChromeExt.rtm.users, eObj, 'user');
 	    }
-	    //_tsmSlackChromeExt.displayPanel('convo');
+	},
+	wssClose : function(){ var self = this;
+		this.wss.onclose = function () {}; // disable onclose handler first
+    	self.wss.close();
 	},
 	updateSession: function (state) { var self = this; //state = good or bad
 		if ( state === 'good' ) {
@@ -222,6 +228,7 @@ var _tsmSlackChromeExt = {
   	clearPrefs : function (){
 		this.log('clearPrefs called');
 		chrome.storage.local.clear(function() {
+			_tsmSlackChromeExt.wssClose();
 			_tsmSlackChromeExt.log('clearPrefs success');
 		});
   	},
@@ -309,6 +316,12 @@ var _tsmSlackChromeExt = {
   	setPopEnv : function( w, jQ ){
   		_tsmSlackChromeExt.popWin = w; _tsmSlackChromeExt.jQ = jQ;
   		_tsmSlackChromeExt.displayPanel( _tsmSlackChromeExt.activePanel );
+
+
+/*
+*/
+
+
   	},
   	hasAuth : false,//is current session authorized
   	activePanel : 'prefs', //default panel

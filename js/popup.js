@@ -1,14 +1,13 @@
 (function($){
 
-if ( chrome.extension ) {
-	var bg = chrome.extension.getBackgroundPage()._tsmSlackChromeExt,
-    me = bg.rtm.self,
-    mQ = bg.rtm.messages,
-    cc = bg.rtm.convos,
-    channel = bg.rtm.channels,
-    users = bg.rtm.users;
-}
-
+	var bg = chrome.extension.getBackgroundPage()._tsmSlackChromeExt;
+	if ( bg.hasAuth ) {
+	    var me = bg.rtm.self,
+	    mQ = bg.rtm.messages,
+	    cc = bg.rtm.convos,
+	    channel = bg.rtm.channels,
+	    users = bg.rtm.users;
+	}
     //bg.getConvos() //loop through unread convo list and update header display
     //bg.sendMessage( message, convo ) //send message to slack convo
     //bg.switchPanel( panel )//switch between users status, preference and convo panes
@@ -77,67 +76,61 @@ if ( chrome.extension ) {
 		// access data: user[ data.user ].name
 		// access data: channel[ data.channel ].name
 
-if ( chrome.extension ) {
-
 		//listUsers.init();
 		//displayMessage.init();
 		bg.setPopEnv( window, $);
+
 		$( window ).unload(function() {
 			bg.unsetPopEnv();
 		});
-
-
-    $(document).on('click', 'nav.nav button', function(e){
-      bg.displayPanel(e.target.className);
-    });
-
-	$(document).on('click', '#header .tabs li', function(e) {
-		bg.displayMessage(e.target.className);
-	});
-
-			$(document).on('click', '#header .tabs .left.arrow', function(e){
-				$('.tabs ul').prepend($(".tabs ul>li:last"));
-			});
-			$(document).on('click', '#header .tabs .right.arrow', function(e){
-				$('.tabs ul').append($(".tabs ul>li:first"));
-			});
-
-
-	$.fn.serializeObject = function(){
-	    var o = {};
-	    var a = this.serializeArray();
-	    $.each(a, function() {
-	        if (o[this.name] !== undefined) {
-	            if (!o[this.name].push) {
-	                o[this.name] = [o[this.name]];
-	            }
-	            o[this.name].push(this.value || '');
-	        } else {
-	            o[this.name] = this.value || '';
-	        }
-	    });
-	    return o;
-	};
-
-	$(function() {
-	    $('form#preferences').submit( function() {
-	        bg.saveAuth( $('form#preferences').serializeObject() );
-	        return false;
-	    });
-	});
 
 		$('body').on('click', '#clearPrefs', function(e){
 			bg.clearPrefs();
 		});
 
+		$('body').on('click', '#start-session', function(e){
+	        bg.saveAuth( $('form#preferences').serializeObject() );
+	        //return false;
+	    });
 
-} //chrome
+
+	    $(document).on('click', 'nav.nav button', function(e){
+	      bg.displayPanel(e.target.className);
+	    });
+
+		$(document).on('click', '#header .tabs li', function(e) {
+			bg.displayMessage(e.target.className);
+		});
+
+		$(document).on('click', '#header .tabs .left.arrow', function(e){
+			$('.tabs ul').prepend($(".tabs ul>li:last"));
+		});
+		$(document).on('click', '#header .tabs .right.arrow', function(e){
+			$('.tabs ul').append($(".tabs ul>li:first"));
+		});
+
+
+		$.fn.serializeObject = function(){
+		    var o = {};
+		    var a = this.serializeArray();
+		    $.each(a, function() {
+		        if (o[this.name] !== undefined) {
+		            if (!o[this.name].push) {
+		                o[this.name] = [o[this.name]];
+		            }
+		            o[this.name].push(this.value || '');
+		        } else {
+		            o[this.name] = this.value || '';
+		        }
+		    });
+		    return o;
+		};
 
 		//this will be replaced by bg window post method
 		$('body').on('click', '.test', function(e){
 			var method = "chat.postMessage";
-			var token = "?token=xoxp-3118431681-3135145631-4229637403-9444ae";
-			var msg = 'test';// document.getElementById('msg').value; //$('#msg').val();
+			var token = "?token="+bg.prefs.authToken;
+			var msg = document.getElementById('msg').value; //$('#msg').val();
 		console.log("click:"+typeof msg+"::"+msg.length);
 			var request = $.ajax({
 				url: "https://slack.com/api/"+method+token,
