@@ -88,18 +88,30 @@
 			bg.clearPrefs();
 		});
 
+		$('body').on('click', '#restartWss', function(e){
+			bg.startWss( bg.prefs.authToken );
+		});
+
+		$('body').on('click', '#testWss', function(e){
+			bg.testWss();
+		});
+
 		$('body').on('click', '#start-session', function(e){
 	        bg.saveAuth( $('form#preferences').serializeObject() );
 	        //return false;
 	    });
 
 
-	    $(document).on('click', 'nav.nav button', function(e){
+	    $(document).on('click', 'nav.nav span', function(e){
 	      bg.displayPanel(e.target.className);
 	    });
 
 		$(document).on('click', '#header .tabs li', function(e) {
 			bg.displayMessage(e.target.className);
+		});
+
+		$(document).on('click', '#convo tr', function(e) {
+			if ( thisconvo = $(this).attr('id') ) { bg.clickConvo( thisconvo );}
 		});
 
 		$(document).on('click', '#header .tabs .left.arrow', function(e){

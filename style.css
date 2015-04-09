@@ -126,13 +126,27 @@ body {
 nav.nav{
   position:absolute;
   top:0;
-  left:30%;
+  right:0;
   margin-left:8px;
 }
-nav.nav button{
-  display:inline;
-  height:20px;
-  width:40px;
+nav.nav span{
+	background:#68459D;
+	color:#FFF;
+	border-radius:0;
+	border:solid 1px #000;
+	border-top:0;
+	border-right:0;
+	display:block;
+	height:17px;
+	width:70px;
+	font-size: 13px;
+	line-height:17px;
+	padding:0 6px;
+	cursor:pointer;
+	text-align:right;
+}
+nav.nav span:hover{
+	background-color: #462973;
 }
 section{
 	min-height:300px;
@@ -156,6 +170,25 @@ section main::after {
 section header{
 	height: 54px;
 	background-color: #462973;
+}
+section header h2 {
+	color:#FFF;
+	line-height: 54px;
+	padding-left: 15px;	
+}
+span.badge{
+	color:#FFF;
+	border:1px solid #000;
+	border-radius: 3px;
+	background:#F66;
+	background: linear-gradient(#F88, #C00);
+}
+h2 span.badge{
+	padding:2px 4px;
+}
+td span.badge{
+	font-size:12px;
+	padding:0 5px;
 }
 section#convo header.tabs ul {
 	list-style: none;
@@ -220,11 +253,11 @@ section#convo header.tabs .arrows .arrow {
 	height: 54px;
 	float: left;
 }
-section#convo main .user {
+section main .user {
 	height: 50px;
 	margin-bottom: 15px;
 }
-section#convo main .user span {
+section main .user span {
 	line-height: 25px;
 }
 section#convo main .user .timestamp {
@@ -245,7 +278,7 @@ section#convo main .user .close {
 section#convo main .user .close:hover {
 	background-image: url("img/close_dark.png");
 }
-section#convo main .pic {
+section main .pic {
 	width: 50px;
 	height: 50px;
 	float: left;
@@ -284,10 +317,64 @@ section#convo main .slack_open img{
 form#preferences input{
 	width:100%;
 }
+section#users main{
+	padding-left:9px;
+}
 section#users main img{
-	border:solid 2px #3A3;
+	border:solid 3px #3A3;
+	margin: 0 0 3px 6px;
+	_box-shadow: 1px 1px 2px #888888;
 }
 section#users main img.away{
 	opacity:0.5;
-	border:solid 2px #A33;
+	border:solid 3px #A33;
+	box-shadow: none;
+}
+section#users main .team{
+	position: relative;
+}
+section#users main .team .badge{
+  position: absolute;
+  bottom: 7px;
+  right: 1px;
+  font-size: 12px;
+  padding: 1px 4px;
+}
+section#convo tr:nth-child(odd) {background: #EEE}
+section#convo table{
+	width:100%;
+	border-top:solid 1px #aaa;
+	border-bottom:solid 1px #aaa;
+}
+section#convo th,
+section#convo td{
+	padding:4px;
+}
+section#convo th{
+	background: #EEE;
+	text-align:left;
+	border-bottom:solid 1px #aaa;
+}
+section#convo td a{
+	color:#000;
+	text-decoration:none;
+}
+section#convo tr td{
+	cursor:pointer;
+}
+section#convo tr:hover:nth-child(even) {background: #F8F8F8}
+section#convo tr:hover:nth-child(odd) {background: #E8E8E8}
+section#convo tr:hover a{
+	text-decoration:underline;
+}
+section#convo legend{
+	margin-top:10px;
+	text-align: right;
+	display: block;
+	width: 100%;
+	color: #999;
+	font-size: 14px;
+}
+section#reply .messages{
+	overflow-y:auto;
 }
