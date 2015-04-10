@@ -29,27 +29,58 @@
   - [1]: https://developer.chrome.com/extensions/contentSecurityPolicy
  -->
 <link rel="stylesheet" href="style.css">
+<!-- script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.3.15/angular.min.js"></script>
+<script src="js/app.js"></script>
+<script src="js/controller.js"></script -->
+
 <!-- script src="//code.jquery.com/jquery-2.0.3.min.js"></script -->
 <script src="js/popup.js"></script>
 <!-- script src="js/hello.js"></script -->
 <!-- script src="js/background.js"></script -->
 </head>
-<body>
+<body tabindex="1">
 
 <nav class="nav">
   <span class="convo">Unread</span>
   <span class="users">Team</span>
   <span class="prefs">Settings</span>
+  <!-- span class="reply">Reply</span -->
+  <!-- span class="profile">Profile</span view others' profile page has a message box on it to start a chat-->
 </nav>
 <div id="sections">
 
   <section id="reply">
     <header>
-      <h2>Conversation Name</h2>
+      <h2><span class="badge"></span> Conversation Name</h2>
     </header>
     <main>
-      <div class="message">
+      <div class="history">
 
+<div id="msg_1425924683_000026"><i class="timestamp ">2:11 PM</i><a class="member" data-member-id="U033Z341Z"> harryward</a>:<span class="message_content">yea add this to your summary page as a new tab</span></div>
+<div id="msg_1425924683_000026"><i class="timestamp ">2:11 PM</i><a class="member" data-member-id="U033Z341Z"> harryward</a>:<span class="message_content">yea add this to your summary page as a new tab</span></div>
+<div id="msg_1425924683_000026"><i class="timestamp ">2:11 PM</i><a class="member" data-member-id="U033Z341Z"> harryward</a>:<span class="message_content">yea add this to your summary page as a new tab</span></div>
+<div id="msg_1425924683_000026"><i class="timestamp ">2:11 PM</i><a class="member" data-member-id="U033Z341Z"> harryward</a>:<span class="message_content">yea add this to your summary page as a new tab</span></div>
+<div id="msg_1425924683_000026"><i class="timestamp ">2:11 PM</i><a class="member" data-member-id="U033Z341Z"> harryward</a>:<span class="message_content">yea add this to your summary page as a new tab</span></div>
+<div id="msg_1425924683_000026"><i class="timestamp ">2:11 PM</i><a class="member" data-member-id="U033Z341Z"> harryward</a>:<span class="message_content">yea add this to your summary page as a new tab</span></div>
+<div id="msg_1425924683_000026"><i class="timestamp ">2:11 PM</i><a class="member" data-member-id="U033Z341Z"> harryward</a>:<span class="message_content">yea add this to your summary page as a new tab</span></div>
+<div id="msg_1425924683_000026"><i class="timestamp ">2:11 PM</i><a class="member" data-member-id="U033Z341Z"> harryward</a>:<span class="message_content">yea add this to your summary page as a new tab</span></div>
+<div id="msg_1425924683_000026"><i class="timestamp ">2:11 PM</i><a class="member" data-member-id="U033Z341Z"> harryward</a>:<span class="message_content">yea add this to your summary page as a new tab</span></div>
+<div id="msg_1425924683_000026"><i class="timestamp ">2:11 PM</i><a class="member" data-member-id="U033Z341Z"> harryward</a>:<span class="message_content">yea add this to your summary page as a new tab</span></div>
+<div id="msg_1425924683_000026"><i class="timestamp ">2:11 PM</i><a class="member" data-member-id="U033Z341Z"> harryward</a>:<span class="message_content">yea add this to your summary page as a new tab</span></div>
+<div id="msg_1425924683_000026"><i class="timestamp ">2:11 PM</i><a class="member" data-member-id="U033Z341Z"> harryward</a>:<span class="message_content">yea add this to your summary page as a new tab</span></div>
+<div id="msg_1425924683_000026"><i class="timestamp ">2:11 PM</i><a class="member" data-member-id="U033Z341Z"> harryward</a>:<span class="message_content">yea add this to your summary page as a new tab</span></div>
+<div id="msg_1425924683_000026"><i class="timestamp ">2:11 PM</i><a class="member" data-member-id="U033Z341Z"> harryward</a>:<span class="message_content">yea add this to your summary page as a new tab</span></div>
+<div id="msg_1425924683_000026"><i class="timestamp ">2:11 PM</i><a class="member" data-member-id="U033Z341Z"> harryward</a>:<span class="message_content">yea add this to your summary page as a new tab</span></div>
+<div id="msg_1425924683_000026"><i class="timestamp ">2:11 PM</i><a class="member" data-member-id="U033Z341Z"> harryward</a>:<span class="message_content">yea add this to your summary page as a new tab</span></div>
+<div id="msg_1425924683_000026"><i class="timestamp ">2:11 PM</i><a class="member" data-member-id="U033Z341Z"> harryward</a>:<span class="message_content">yea add this to your summary page as a new tab</span></div>
+<div id="msg_1425924683_000026"><i class="timestamp ">2:11 PM</i><a class="member" data-member-id="U033Z341Z"> harryward</a>:<span class="message_content">yea add this to your summary page as a new tab</span></div>
+<div id="msg_1425924683_000026"><i class="timestamp ">2:11 PM</i><a class="member" data-member-id="U033Z341Z"> harryward</a>:<span class="message_content">yea add this to your summary page as a new tab</span></div>
+
+      </div>
+      <div class="message">
+        <textarea id="msg" placeholder="Enter quick reply"></textarea>
+        <button type="button" class="test">Add Reply</button>
+        <span class="nav"><button class="convo">Cancel</button></span>
       </div>
 
     </main>
@@ -57,7 +88,7 @@
 
   <section id="convo">
     <header>
-      <h2><span class="badge">14</span> Unread Messages</h2>
+      <h2><span class="badge"></span> Unread Messages</h2>
     </header>
     <main>
       <table>
@@ -108,6 +139,8 @@
         </tr>
         </tbody>
       </table>
+      <!-- button id="logConvos" class="btn btn-primary">Log Convos</button -->
+
       <legend>#channel, @direct-message, &#62;private-group</legend>
     </main>
   </section>
@@ -124,10 +157,29 @@
     <header>
       <h2>Settings</h2>
     </header>
-    <main>
-      <div class="user">
-      </div>
+    <main class="preauth"><!-- class = connection status -->
+      <h1>
 
+      <article class="detail">
+        <img class="pic" src="'+self.userdata.profile.image_48+'">
+        <div>
+          <p>Team: <span class="team"></span></p>
+          <p>You: <span class="uname"></span></p>
+          <p>Highlight words: <span class="highlight_words"></span></p>
+        </div>
+      </article><!-- detail -->
+
+      <article class="authorize">
+        <button id="authSlack" class="btn btn-primary">Authorize Extension with Slack</button>
+        <p>Authorize this extension to use your Slack account to keep up to the minute with your messages.</p>
+      </article><!-- authorize -->
+
+      <article class="connect">
+        <p>Connecting...</p>
+      </article><!-- connect -->
+
+
+      </h1>
       <form id="preferences">
         
         <!-- div class="form-group">

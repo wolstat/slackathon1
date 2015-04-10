@@ -178,17 +178,24 @@ section header h2 {
 }
 span.badge{
 	color:#FFF;
-	border:1px solid #000;
-	border-radius: 3px;
-	background:#F66;
-	background: linear-gradient(#F88, #C00);
+	background:#C13;
 }
 h2 span.badge{
-	padding:2px 4px;
+	padding:2px 7px;
+	margin-right:2px;
 }
 td span.badge{
 	font-size:12px;
 	padding:0 5px;
+}
+button {
+	background-color: #462973;
+	border-radius: 5px;
+	border: none;
+	color: #ffffff;
+	height: 35px;
+	width: 85px;
+        float: left;
 }
 section#convo header.tabs ul {
 	list-style: none;
@@ -295,15 +302,6 @@ section#convo main textarea {
 	box-sizing: border-box;
 	padding: 8px 10px;
 }
-section#convo main button {
-	background-color: #462973;
-	border-radius: 5px;
-	border: none;
-	color: #ffffff;
-	height: 35px;
-	width: 85px;
-        float: left;
-}
 section#convo main .slack_open{
 	float: right;
 	color: #cccccc;
@@ -314,15 +312,17 @@ section#convo main .slack_open img{
 	float: right;
 	margin-left: 10px;
 }
-form#preferences input{
-	width:100%;
-}
 section#users main{
 	padding-left:9px;
 }
+section#users main .team{
+	position: relative;
+	display: inline-block;
+	margin: 0 0 3px 6px;
+	cursor:pointer;
+}
 section#users main img{
 	border:solid 3px #3A3;
-	margin: 0 0 3px 6px;
 	_box-shadow: 1px 1px 2px #888888;
 }
 section#users main img.away{
@@ -330,15 +330,13 @@ section#users main img.away{
 	border:solid 3px #A33;
 	box-shadow: none;
 }
-section#users main .team{
-	position: relative;
-}
 section#users main .team .badge{
-  position: absolute;
-  bottom: 7px;
-  right: 1px;
-  font-size: 12px;
-  padding: 1px 4px;
+	opacity:1;
+	position: absolute;
+	bottom: 7px;
+	right: 1px;
+	font-size: 12px;
+	padding: 1px 4px;
 }
 section#convo tr:nth-child(odd) {background: #EEE}
 section#convo table{
@@ -375,6 +373,31 @@ section#convo legend{
 	color: #999;
 	font-size: 14px;
 }
-section#reply .messages{
+
+section#prefs main article{
+	display:none;
+}
+section#prefs main.preauth .authorize,
+section#prefs main.init .connect,
+section#prefs main.active .detail{
+	display:block;
+}
+
+section#prefs form{
+	clear: both;
+}
+section#prefs form input{
+	width:100%;
+}
+
+
+
+
+section#reply .message textarea{
+	width:100%;
+}
+section#reply .history{
 	overflow-y:auto;
+	font-size: 12px;
+	max-height:250px;
 }

@@ -2,40 +2,43 @@
 //  https://developer.chrome.com/apps/app_identity
 //launchWebAuthFlow
 
+//TODO: gotcha - leaving slack app while on a channel assumes you see all messages in that channel
 
-//TODO: loop through new RTM data and mark unreads
+//TODO: display messages in a channel on reply panel
+//TODO: make directIM numbers live on users panel
+//TODO: loop through and make full usermeta data
+//TODO: delete rtm obj after all imports!
+
 //TODO: logic to detect a stale session and restart
 
+//TODO: handle new user
+//TODO: handle new channel
+
+//TODO: reply in-app
 //TODO: clear convo from ext back to slack
-//TODO: update users.presence, sort list by last active time
 //TODO: get messages to send through the wss
-
-//TODO: updateBadge needs to calculate status, not be passed it
-//TODO: deeplink to channel https://tsmproducts.slack.com/messages/collab-room/
-
 
 var _tsmSlackChromeExt = {
 	authorize : function(){ var self = this;
-		var IdleState;
-		self.updateStatus('init');
+		//var IdleState;
+		self.updateStatus('preauth');			
 		self.log("authorize called");
 		self.getPrefs( function(result) {
 			var prefs = result.prefs;
 			self.log('getPrefs success: result'+JSON.stringify(prefs));
 			if ( typeof prefs !== 'undefined' && prefs.authToken && prefs.authToken !== null ) {
 				self.startWss( prefs.authToken );
-			} else {
-				self.getToken();
 			}
 		});
 	},
 	getToken : function(){ var self = this; //launchWebAuthFlow
 		self.log("getToken called");
-		self.updateStatus('notoken');			
+		//self.updateStatus('badtoken');			
 		//launchWebAuthFlow 
 	},
 	startWss : function( token ){ var self = this;
 		if ( typeof token == undefined ) self.authorize;
+		self.updateStatus('init');
 		self.unsetPopEnv();//init with null values
 		self.wss = null;
 		self.rtm = {};
@@ -56,12 +59,16 @@ var _tsmSlackChromeExt = {
 					self.updateStatus('unauthorized');
 					return;
 				}
+				self.active.panel = 'users';
 				self.rtm = response;
+				self.rtm.usermeta = {},
+				self.rtm.convometa = {},
 				self.rtm.convos = [],
 				self.rtm.messages = [],
-				self.rtm.state = {},
+				self.rtm.state = {},///match/mention
 				//add users info to self profile
 				self.userdata = self.getObjectItem( self.rtm.users, self.rtm.self.id );
+				//C033GCPLPconsole.log("self.userdata"+JSON.stringify(self.userdata));
 				self.importConvos();
 				self.wss = new window.WebSocket( response.url ); //wss
 				self.wss.onopen = self.wssOnOpen;
@@ -69,55 +76,62 @@ var _tsmSlackChromeExt = {
 				self.wss.onerror = self.wssOnError;
 				self.wss.onmessage = self.wssOnEvent;
 				self.wss.send = self.wssSend;
-				self.activePanel = 'users';
 				self.teamDomain = 'https://'+self.rtm.team.domain+'.slack.com/';
 			}
 		});
 	},
-	onChromeStateChange : function( state ){
-		_tsmSlackChromeExt.log('onChromeStateChange called');
+	onChromeStateChange : function( state ){ var self = _tsmSlackChromeExt;
+		self.log('onChromeStateChange: '+state);
+		self.active.chrome = ( state === 'active' );
 	   if ( state === 'active' && typeof _tsmSlackChromeExt.wss !== 'undefined' && _tsmSlackChromeExt.wss !== null ) _tsmSlackChromeExt.maybeRestartWss();
 	},
-	maybeRestartWss: function(){
-		if (
-			_tsmSlackChromeExt.wss.readyState === 0 ||
-			_tsmSlackChromeExt.wss.readyState === 3
-		) {
-			_tsmSlackChromeExt.startWss();
-			_tsmSlackChromeExt.log('maybeRestartWss restarted');			
-		} else {_tsmSlackChromeExt.log('maybeRestartWss decided not to restart');}
+	maybeRestartWss: function(){ var self = _tsmSlackChromeExt;
+		if ( self.wss.readyState === 0 || self.wss.readyState === 3 ) {
+			self.startWss();
+			self.log('maybeRestartWss restarted - readyState match');			
+		} else {
+			var data = new ArrayBuffer(10000000);
+			self.wss.send(data);
+			if (self.wss.bufferedAmount === 0) {
+				self.log('maybeRestartWss decided not to restart');
+			} else {
+				self.startWss();
+				self.log('maybeRestartWss restarted - ArrayBuffer did not send');			
+			}
+		}
 	},
-	wssOnOpen : function () { //wss
-		_tsmSlackChromeExt.updateStatus('connected');
-	    _tsmSlackChromeExt.log("WSS connection open");
+	wssOnOpen : function () { var self = _tsmSlackChromeExt;
+		self.updateStatus('connected');
+	    self.log("wssOnOpen");
 	},
-	wssOnClose : function () { //wss
-		_tsmSlackChromeExt.updateStatus('disconnected');
-		_tsmSlackChromeExt.displayPanel('prefs');
-	    _tsmSlackChromeExt.log("WSS connection onClose");
+	wssOnClose : function () { var self = _tsmSlackChromeExt;
+		self.updateStatus('disconnected');
+		self.displayPanel('prefs');
+	    self.log("wssOnClose");
+	    self.maybeRestartWss();
 	},
 	wssOnError : function () { //wss
 		//_tsmSlackChromeExt.updateStatus('disconnected');
 		//_tsmSlackChromeExt.displayPanel('prefs');
-	    _tsmSlackChromeExt.log("WSS connection error");
+	    _tsmSlackChromeExt.log("wssOnError");
 		//_tsmSlackChromeExt.maybeRestartWss(); //wrap this in some logic to prevent infinite error loop
 	},
-	wssSend : function (message, channel) { //wss
-		return "{'as_user':true,'type':'message','channel','"+channel+"', 'text':'"+message+"'}";
+	wssSend : function (data) { //wss
+		//return "{'as_user':true,'type':'message','channel','"+channel+"', 'text':'"+message+"'}";
 	},
-	wssOnEvent : function (evt) { //wss
+	wssOnEvent : function (evt) { var self = _tsmSlackChromeExt;
 	    var eObj = $.parseJSON(evt.data);
-	    _tsmSlackChromeExt.log("wssOnEvent evt.data "+evt.data);
+	    self.log("wssOnEvent evt.data "+evt.data);
 	    //message filters: non-message, messages from self, and intial 'reply_to' messages
 	    // && eObj.user !== _tsmSlackChromeExt.rtm.self.id
-	    if ( eObj.type === 'message' && typeof eObj.reply_to === 'undefined' && eObj.user !== _tsmSlackChromeExt.rtm.self.id ) {
-	    	_tsmSlackChromeExt.addToQueue(eObj);
-	    } else if ( eObj.type === 'channel_marked' || eObj.type === 'group_marked' ) { //group_marked?
-	    	_tsmSlackChromeExt.unmarkChannel( eObj );
-	    	_tsmSlackChromeExt.updateStatus('message');
-	    	_tsmSlackChromeExt.activePanel = 'convo';
+	    if ( eObj.type === 'message' && typeof eObj.reply_to === 'undefined' && eObj.user !== self.rtm.self.id ) {
+	    	self.addToQueue(eObj);
+	    } else if ( eObj.type === 'channel_marked' || eObj.type === 'group_marked' || eObj.type === 'im_marked' ) { //direct_message marked?
+	    	self.unmarkChannel( eObj );
+	    	self.updateStatus('message');
+	    	self.active.panel = 'convo';
 	    } else if ( eObj.type === 'presence_change' ) {
-	    	_tsmSlackChromeExt.updateObject(_tsmSlackChromeExt.rtm.users, eObj, 'user');
+	    	self.updateObject(self.rtm.users, eObj, 'user');
 	    	//re-sortUsers();
 	    }
 	},
@@ -130,58 +144,70 @@ var _tsmSlackChromeExt = {
 		self.log('testWss self.wss.readyState:'+self.wss.readyState);			
 	},
 	updateStatus : function ( state ) { var self = this; //state = good or bad
-		self.hasAuth = this.statuses[state].hasAuth;
+		self.has.auth = this.statuses[state].hasAuth;
+		self.active.prefclass = this.statuses[state].prefclass;
+		self.active.state = state;
 		self.updateBadge(state);			
 	},
-	updateBadge : function( state ){
+	updateBadge : function( state ){ var self = _tsmSlackChromeExt;
 		//check urgency statuses
 		this.log('updateBadge '+state);
 
 		//TODO: only count messages when its a message state
-		var mCt = ( typeof _tsmSlackChromeExt.rtm === 'undefined' || typeof _tsmSlackChromeExt.rtm.messages === 'undefined' ) ? 0 : _tsmSlackChromeExt.rtm.messages.length;
-		var ct = ( mCt < 1 ) ? "" : (mCt + "");
+		var ct = self.getMessageCount();;
 		//chrome.browserAction.setBadgeTitle({ title: this.statuses[state].message });
 		chrome.browserAction.setBadgeText({ text: ct+this.statuses[state].suffix });
 		chrome.browserAction.setBadgeBackgroundColor({ color:this.statuses[state].color }); //[155, 139, 187, 255]
   	},
+  	//take fresh rtm  session data and pull out unread messages
   	importConvos : function(){ var self = this;
-  		var c, i, ch = self.rtm.channels, im = self.rtm.ims, cSupp = 0, iSupp = 0;
-		for (var c in ch) { if (ch[c].unread_count > 0 ) {
-			if ( ch[c].latest.type === 'message') {
-				var msg = ch[c].latest;
-				msg['channel'] = ch[c].id;
-				self.addToQueue(msg);				
-			}
-			if ( ch[c].unread_count > 1 ) { self.updateConvo( {id: ch[c].id, count: (ch[c].unread_count - 1)} ); }
-		}}
-		for (var i in im) { if (im[i].unread_count > 0 ) {
-			if ( im[i].latest.type === 'message') {
-				var msg = im[i].latest;
-				msg['channel'] = im[i].id;
-				self.addToQueue(msg);				
-			}
-			if ( im[i].unread_count > 1 ) { self.updateConvo( {id: ch[c].id, count:(im[i].unread_count - 1)} ); }
-		}}
+  		var c, i, l, co, ch = self.rtm.channels, im = self.rtm.ims, cSupp = 0, iSupp = 0;
+  		var cObjects = ['channels', 'ims', 'groups'];
+  		for ( co in cObjects ) {
+  			var list = self.rtm[ cObjects[co] ];
+			for ( l in list) { if (list[l].unread_count > 0 && list[l].latest.type === 'message' ) {
+				self.log('importConvos match '+JSON.stringify(list[l]));
+				var metaname = (list[l].is_im) ? list[l].user : list[l].name;// self.rtm.users.id[ims.user].real_name
+				if ( cObjects[co] === 'ims' ) {self.rtm.usermeta[list[l].user] = { "id":list[l].user, "channel":list[l].user};
+				self.rtm.convometa[list[l].id] = { "id":list[l].id, "label":metaname};
+				self.createConvo( list[l] );
+				var msg = list[l].latest;
+				msg['channel'] = list[l].id;
+				self.active.panel = 'convo';
+				self.addToQueue(msg);	
+			}}
+		}
+  	},
+  	createConvo : function( arg ){ var self = this;
+  		var lId = ( arg.type && arg.type === 'message' ) ? arg.channel : arg.id;
+  		var lCt = ( arg.type && arg.type === 'message' ) ? 1 : (arg.unread_count - 1);
+  		var newConvo = {
+  			id : lId,
+  			count : lCt, //will import latest and increment by one then
+  			label : self.cPrefix[ lId.substring(0,1) ]+self.rtm.convometa[ lId ].label,
+  			mention:0,
+  			match:0
+  		};
+  		self.rtm.convos.push( newConvo );
   	},
   	// push message to queue
 	addToQueue : function( message ){ var self = this;
-		var type = 'message', m = {};
-		self.updateConvo( {id: message.channel, count:1} );
 		self.rtm.messages.push(message);
-		self.updateStatus(type);
+		self.updateConvo(message);
 		console.log("messages"+JSON.stringify(self.rtm.messages));
   	},
-	updateConvo: function( payload ){ var self = this; //update convo.channel obj
-		var notfound = true, cv = self.rtm.messages;
-		for (var c in cv) { if (cv[c].id === payload.id ) {
-			for ( f in payload ) {
-				if ( f === 'count' ) {
-					cv[c][f] += payload[f];
-				} else { cv[c][f] = payload[f]; }
-			}
-			update = false;
-		}}
-		if ( notfound ){ self.rtm.convos.push( payload ); }
+	updateConvo: function( message ){ var self = this; //update convo.channel obj
+		var cv = self.rtm.convos, type = 'message', m = {};
+		//TODO: filter mentions and matches here
+		var activeConvo = self.getObjectItem( cv, message.channel );
+		if ( activeConvo ) {
+			activeConvo.count++;
+		} else {
+			self.createConvo( message );
+		}
+		self.updateConvoCt();
+		self.updateStatus(type);
+		self.log("updateConvo convos: "+JSON.stringify(self.rtm.convos));
 	},
   	// pull all messages from a read channel out of queue
 	unmarkChannel : function( obj ){ var self = this;
@@ -190,25 +216,42 @@ var _tsmSlackChromeExt = {
 		var mQ = self.rtm.messages, newQ = [],
 		i, channel = obj.channel;
 		for (i = 0;i<mQ.length;i++) { 
-			self.log("unmark loop i:"+i+" :: "+JSON.stringify(mQ));
+			//self.log("unmark loop i:"+i+" :: "+JSON.stringify(mQ));
 			if ( mQ[i].channel !== channel ) {
-				newQ.push(mQ[i]); //delete message from queue
+				newQ.push(mQ[i]);
 			} else { //check kept messages for urgency
 				self.urgencyCheck( mQ[i] );
 			}
 		}
 		//clear self.convos
 		//this.urgencyCheck();
+		self.unmarkConvo( channel );
 		self.rtm.messages = newQ;
+		self.updateConvoCt();
+  	},
+  	unmarkConvo : function( id ){ var self = this;
+  		var newC = [];
+  		for (i = 0; i< self.rtm.convos.length; i++) { if ( self.rtm.convos[i].id !== id ) {
+  			newC.push( self.rtm.convos[i] );
+  		}}
+		self.rtm.convos = newC;
   	},
   	//check message for any filter matches or <@uid> mentions
-  	urgencyCheck : function( message ){
+  	urgencyCheck : function( message ){ var self = this;
   		//self.rtm.self.prefs.highlight_words
   		//loop here checking for filter matches or <@uid> mentions
 		//also re-map edited data to 
 		return true;
 		//self.rtm.state.has_mention = true;
 		//self.rtm.state.has_match = true;
+  	},
+  	getMessageCount : function () { var self = this;
+  		var ct = 0;
+  		if ( self.rtm && self.rtm.convos ) { for (i = 0; i< self.rtm.convos.length; i++) {
+  			ct = ( ct + self.rtm.convos[i].count );
+  		}}
+		//var mCt = ( typeof self.rtm === 'undefined' || typeof self.rtm.messages === 'undefined' ) ? 0 : self.rtm.messages.length;
+		return (ct<1) ? "" : ( ct + "" );
   	},
   	saveAuth : function( payload ){
 		this.log('handlePrefs called '+JSON.stringify(payload));
@@ -233,13 +276,19 @@ var _tsmSlackChromeExt = {
 			_tsmSlackChromeExt.log('clearPrefs success');
 		});
   	},
-  	clickConvo : function ( convo ){
-		this.log('clickConvo convo '+convo);
+  	logConvos : function ( convo ){
+		this.log('logConvo all convos '+JSON.stringify(this.rtm.convos));
+  	},
+  	clickConvo : function ( convo ){ var self = _tsmSlackChromeExt;
+		this.log('clickConvo convo '+convo+ " - "+self.rtm.convometa[ convo ].label);
+		//this.log('clickConvo all convos '+JSON.stringify(this.rtm.convos));
+		self.active.convo = convo;
+		self.displayPanel('reply');
   	},
   	/***************** HTML FUNCTIONS *****************************************/
   	// html switch panel
 	displayPanel : function( clicked ){ var self = _tsmSlackChromeExt;
-		self.activePanel = clicked;
+		self.active.panel = clicked;
 		//this.log("displayPanel");
 		if ( this.popEnv() ) {
 			var jQ = self.jQ,
@@ -254,53 +303,41 @@ var _tsmSlackChromeExt = {
 			});
 		}
   	},
-  	displayMessage : function ( e ) { var self = _tsmSlackChromeExt;
-		var jQ = _tsmSlackChromeExt.jQ;
-  		var el = jQ(e.target);
-  		var channel = el.attr('data-id');
-
-		jQ('#header .tabs li.active').removeClass('active');
-		el.addClass("active");
-		jQ.each(self.rtm.messages, function(index, data){
-			if (data.channel === channel){
-				var d = new Date(parseFloat(data.ts) * 1000);
-				var today = new Date();
-				var umeta = _tsmSlackChromeExt.getUmeta(data.user);
-				//jQ.each(user, function(index2, data2){
-				//if (data.latest.user == data2.id){
-				jQ('#content .name').text(umeta.real_name);
-				jQ('#content .pic').attr('src', umeta.profile.image_192);
-					//}
-				//});
-				if (d.toLocaleDateString() == today.toLocaleDateString()){
-					jQ('#content .timestamp').text("Today at " + d.toLocaleTimeString());
-				}
-				else {
-					jQ('#content .timestamp').text( d.toLocaleDateString() + " at " + d.toLocaleTimeString());
-				}
-				jQ('#content .message').text(data.text);
-				//$('#content .slack_open').attr('href',"https://tsmproducts.slack.com/messages/" + data.channel)
-			}
-		})
+  	makeTime : function( ts ){
+  		var d = new Date(parseFloat(ts) * 1000);
+  		return d.toLocaleDateString();
+  		//d.toLocaleTimeString()
   	},
-  	panelRefresh : function ( panel ){
+  	panelUpdate : function( panel ){ //panelUpdate called to update data values when the user may be looking at the page 
+  		return 'f';
+  	},
+  	panelRefresh : function ( panel ){ //panelRefresh called when panel switches
   		if ( this.popEnv() ) {
 			var self = _tsmSlackChromeExt,
 			jQ = self.jQ,
 			w = self.popWin;
 			switch( panel ) {
 				case "prefs":
-						jQ('section#prefs').find('.user').html('');
-						jQ('section#prefs').find('.user').append('<img class="pic" src="'+self.userdata.profile.image_48+'"><div><p>Team: <span class="team">'+self.rtm.team.name+'</span></p><p>You: <span class="uname">'+self.rtm.self.name+'</span></p><p>Highlight words: <span class="filterterms">'+self.rtm.self.prefs.highlight_words+'</span></p></div>');
+						jQ('section#prefs').find('main').attr('class', self.active.prefclass);
+						jQ('section#prefs .detail').find('img.pic').attr('src', self.userdata.profile.image_48);
+						jQ('section#prefs .detail').find('span.team').html(self.rtm.team.name);
+						jQ('section#prefs .detail').find('span.uname').html(self.rtm.self.name);
+						jQ('section#prefs .detail').find('span.highlight_words').html(self.rtm.self.prefs.highlight_words);
+
+						//jQ('section#prefs').find('.user').html('');
+						//jQ('section#prefs').find('.user').append('<img class="pic" src="'++'"><div><p>Team: <span class="team">'++'</span></p><p>You: <span class="uname">'++'</span></p><p>Highlight words: <span class="filterterms">'+self.rtm.self.prefs.highlight_words+'</span></p></div>');
 					break;
 				case "convo":
-
-					jQ.each(_tsmSlackChromeExt.rtm.convos, function(index, data){
-						//if (data.unread_count > 0){
-							jQ('#header').find('.tabs ul').append('<li data-id="'+data.id+'" class="'+ data.id + data.last_read + '">'+ data.name +'</li>');
-						//}
-					})
-
+					self.updateConvoCt();
+					var tablehtml = "", co = self.rtm.convos;
+					for ( var c in co ) {
+						tablehtml += '<tr id="'+co[c].id+'">';
+						tablehtml += '<td class="col1"><span class="badge">'+co[c].count+'</span></td>';
+						tablehtml += '<td class="col2"><a>'+co[c].label+'</a></td>';
+						tablehtml += '<td class="col3"><a>'+co[c].mention+'</a></td>';
+						tablehtml += '<td class="col4"><a>'+co[c].match+'</a></td></tr>';
+					}
+					jQ('section#convo').find('main tbody').html( tablehtml );
 					break;
 				case "users":
 					jQ('section#users').find('main').html('');
@@ -312,27 +349,73 @@ var _tsmSlackChromeExt = {
 					}
 
 					break;
+				case "reply":
+					var cObj = self.getObjectItem(self.rtm.convos, self.active.convo );
+					jQ('section#reply').find('h2').html( '<span class="badge">'+cObj.count+'</span>'+cObj.label );
+					break;
 			}
 		}
   	},
+  	//displayNewConvos
+  	updateConvoCt : function (){
+  		if ( this.popEnv() ) {
+			var self = _tsmSlackChromeExt,
+			jQ = self.jQ;
+			jQ('section#convo').find('header h2 .badge').html( _tsmSlackChromeExt.getMessageCount() );
+		}
+  	},
+  	removeConvoRow : function (id){
+  		if ( this.popEnv() ) {
+			var self = _tsmSlackChromeExt,
+			jQ = self.jQ;
+			jQ('section#convo').find('tr#'+id).remove;
+		}
+  	},
+  	//////////// end UI HTML funcs /////////////////////
   	popEnv : function(){ return ( this.jQ !== null && this.popWin !== null ); },
   	unsetPopEnv : function(){ _tsmSlackChromeExt.popWin = null; _tsmSlackChromeExt.jQ = null; },
   	setPopEnv : function( w, jQ ){
   		_tsmSlackChromeExt.popWin = w; _tsmSlackChromeExt.jQ = jQ;
-  		_tsmSlackChromeExt.displayPanel( _tsmSlackChromeExt.activePanel );
+  		_tsmSlackChromeExt.displayPanel( _tsmSlackChromeExt.active.panel );
 
   	},
+  	cPrefix : {'C':'#', 'G':'&gt;', 'D':'@'}, //convo id initials
+  	has : { //new state object
+  		auth : false,
+  		connection : false,
+  		message : false
+  	},
+  	active : { //display states
+  		convo : false, //convo id, for reply page
+  		chrome : true, //is chrome active?
+  		state : 'preauth', //this is the h1 class on the prefs panel
+  		panel : 'prefs', //unread, team, settings, (reply, groups, channels) //default panel in popup
+  		prefclass : 'preauth' //h1 is on the prefs panel
+  	},
   	hasAuth : false, //is current session authorized
-  	activePanel : 'prefs', //default panel in popup
 	apiUrl : "https://slack.com/api/",
-	//userId : 'U033Z49JK', //wolstat
-	//authToken: "xoxp-3118431681-3168705663-4227973029-c967a2" //jzee
-	//authToken : "xoxp-3118431681-3135145631-4229637403-9444ae", //wolstat
   	prefs : { //save whole object directly to localStorage.prefs
 		authToken : null,
 	},
 	statuses : {
+		preauth:{
+			prefclass : 'preauth',
+			hasAuth : false,
+			panel:'prefs',
+			message:'Click Connect to give this app permission to access your Slack account',
+			color:'#000',
+			suffix:''
+		},
+		init:{
+			prefclass : 'init',
+			hasAuth : false,
+			panel:'prefs',
+			message:'Initializing...',
+			color:'#000',
+			suffix:'...'
+		},
 		badsession:{
+			prefclass : 'preauth',
 			hasAuth : false,
 			panel:'prefs',
 			message:'Unable to Auth',
@@ -340,34 +423,31 @@ var _tsmSlackChromeExt = {
 			suffix:'!:!'
 		},
 		logout:{
+			prefclass : 'preauth',
 			hasAuth : false,
 			panel:'prefs',
-			message:'You have been logged out',
+			message:'Your session has timed out',
 			color:'#000',
 			suffix:'!'
 		},
-		notoken:{
+		badtoken:{
+			prefclass : 'preauth',
 			hasAuth : false,
 			panel:'prefs',
-			message:'No token available',
+			message:'Invalid token',
 			color:'#000',
 			suffix:'!!'
 		},
 		unauthorized:{
+			prefclass : 'preauth',
 			hasAuth : false,
 			panel:'prefs',
 			message:'Auth has failed',
 			color:'#000',
 			suffix:'!!!'
 		},
-		init:{
-			hasAuth : false,
-			panel:'prefs',
-			message:'Initializing...',
-			color:'#000',
-			suffix:'...'
-		},
 		disconnected:{
+			prefclass : 'preauth',
 			hasAuth : false,
 			panel:'prefs',
 			message:'Unable to Auth',
@@ -375,13 +455,15 @@ var _tsmSlackChromeExt = {
 			suffix:'!!'
 		},
 		connected:{
+			prefclass : 'active',
 			hasAuth : true,
-			panel:'prefs',
+			panel:'users',
 			message:'Connected to Slack',
-			color:'#5BF',
+			color:'#F66',
 			suffix:''
 		},
 		message:{
+			prefclass : 'active',
 			hasAuth : true,
 			panel:'convo',
 			message:'Unread message',
@@ -389,6 +471,7 @@ var _tsmSlackChromeExt = {
 			suffix:''
 		},
 		filter:{
+			prefclass : 'active',
 			hasAuth : true,
 			panel:'convo',
 			message:'Unread filter match',
@@ -396,6 +479,7 @@ var _tsmSlackChromeExt = {
 			suffix:'#'
 		},
 		mention:{
+			prefclass : 'active',
 			hasAuth : true,
 			panel:'convo',
 			message:'Unread mention',
@@ -426,6 +510,7 @@ var _tsmSlackChromeExt = {
 			this.log("getObjectItem found:"+JSON.stringify( obj[l] ) );
 			break;
 		}}
+		return false;
 	},
 	//take array of objects and return same data with unique ID keys
 	indexify : function( dataset, idField ) {
@@ -437,15 +522,72 @@ var _tsmSlackChromeExt = {
 		return results;
 	}
 };
+	//userId : 'U033Z49JK', //wolstat
+	//authToken: "xoxp-3118431681-3168705663-4227973029-c967a2" //jzee
+	//authToken : "xoxp-3118431681-3135145631-4229637403-9444ae", //wolstat
 
+var convometa_map = {
+	"channels":{
+		"id":"id",
+		"name":"name",
+		"is_channel":"is_channel",
+	},
+	"ims":{
+		"id":"id",
+		"name": "users.id[ims.user].real_name",
+		"is_im":"is_im",
+	}
+
+};
 var example_rtm = {"ok":true,
 "self":{"id":"U033Z49JK","name":"wolstat","prefs":{"highlight_words":"wolstat,mike","user_colors":"","color_names_in_list":true,"growls_enabled":true,"tz":"America/Indiana/Indianapolis","push_dm_alert":true,"push_mention_alert":true,"push_everything":true,"push_idle_wait":2,"push_sound":"b2.mp3","push_loud_channels":"","push_mention_channels":"","push_loud_channels_set":"","email_alerts":"instant","email_alerts_sleep_until":0,"email_misc":false,"email_weekly":true,"welcome_message_hidden":false,"all_channels_loud":false,"loud_channels":"G03HD7NF8,G03FE3E8A,C033GCPLP,C0458GXEA","never_channels":"","loud_channels_set":"G03HD7NF8,G03FE3E8A,C033GCPLP,C0458GXEA","show_member_presence":true,"search_sort":"timestamp","expand_inline_imgs":false,"expand_internal_inline_imgs":true,"expand_snippets":false,"posts_formatting_guide":true,"seen_welcome_2":true,"seen_ssb_prompt":false,"search_only_my_channels":false,"emoji_mode":"default","emoji_use":"{\"smile\":1,\"grimacing\":1,\"simple_smile\":1,\"ban\":1}","has_invited":false,"has_uploaded":true,"has_created_channel":true,"search_exclude_channels":"","messages_theme":"dense","webapp_spellcheck":true,"no_joined_overlays":true,"no_created_overlays":false,"dropbox_enabled":false,"seen_user_menu_tip_card":true,"seen_team_menu_tip_card":true,"seen_channel_menu_tip_card":true,"seen_message_input_tip_card":true,"seen_channels_tip_card":true,"seen_domain_invite_reminder":false,"seen_member_invite_reminder":false,"seen_flexpane_tip_card":true,"seen_search_input_tip_card":true,"mute_sounds":false,"arrow_history":false,"tab_ui_return_selects":true,"obey_inline_img_limit":true,"new_msg_snd":"complete_quest_requirement.mp3","collapsible":false,"collapsible_by_click":true,"require_at":false,"mac_ssb_bounce":"","mac_ssb_bullet":true,"expand_non_media_attachments":true,"show_typing":true,"pagekeys_handled":true,"last_snippet_type":"text","display_real_names_override":0,"time24":false,"enter_is_special_in_tbt":false,"graphic_emoticons":false,"convert_emoticons":true,"autoplay_chat_sounds":true,"ss_emojis":true,"sidebar_behavior":"","mark_msgs_read_immediately":true,"start_scroll_at_oldest":true,"snippet_editor_wrap_long_lines":false,"ls_disabled":false,"sidebar_theme":"monument_theme","sidebar_theme_custom_values":"{\"column_bg\":\"#0D7E83\",\"menu_bg\":\"#076570\",\"active_item\":\"#F79F66\",\"active_item_text\":\"#FFFFFF\",\"hover_item\":\"#D37C71\",\"text_color\":\"#FFFFFF\",\"active_presence\":\"#F79F66\",\"badge\":\"#F15340\"}","f_key_search":false,"k_key_omnibox":true,"speak_growls":false,"mac_speak_voice":"com.apple.speech.synthesis.voice.Alex","mac_speak_speed":250,"comma_key_prefs":false,"at_channel_suppressed_channels":"","push_at_channel_suppressed_channels":"","prompted_for_email_disabling":false,"full_text_extracts":false,"no_text_in_notifications":false,"muted_channels":"","no_macssb1_banner":true,"no_winssb1_banner":false,"privacy_policy_seen":true,"search_exclude_bots":false,"fuzzy_matching":false,"load_lato_2":false,"fuller_timestamps":false,"last_seen_at_channel_warning":0,"enable_flexpane_rework":false,"flex_resize_window":false,"msg_preview":false,"msg_preview_displaces":true,"msg_preview_persistent":true,"emoji_autocomplete_big":false,"winssb_run_from_tray":true,"email_compact_header":false,"two_factor_auth_enabled":false,"mentions_exclude_at_channels":true},"created":1417623497,"manual_presence":"active"},
 "team":{"id":"T033GCPL1","name":"TSM Digital Products","email_domain":"townsquaredigital.com","domain":"tsmproducts","msg_edit_window_mins":-1,"prefs":{"default_channels":["C033GCPLP"],"disable_builtin_loading":true,"who_can_at_everyone":"regular","who_can_at_channel":"regular","who_can_post_general":"regular","who_can_create_channels":"regular","who_can_archive_channels":"admin","who_can_create_groups":"ra","who_can_kick_channels":"owner","who_can_kick_groups":"admin","services_only_admins":false,"commands_only_regular":true,"display_real_names":true,"require_at_for_mention":true,"msg_edit_window_mins":-1,"allow_message_deletion":true,"hide_referers":true,"warn_before_at_channel":"always","retention_type":0,"retention_duration":0,"group_retention_type":0,"group_retention_duration":0,"dm_retention_type":0,"dm_retention_duration":0,"compliance_export_start":0},"icon":{"image_34":"https://s3-us-west-2.amazonaws.com/slack-files2/avatars/2014-12-08/3169312262_0fd829d0c6e1e196d083_34.jpg","image_44":"https://s3-us-west-2.amazonaws.com/slack-files2/avatars/2014-12-08/3169312262_0fd829d0c6e1e196d083_44.jpg","image_68":"https://s3-us-west-2.amazonaws.com/slack-files2/avatars/2014-12-08/3169312262_0fd829d0c6e1e196d083_68.jpg","image_88":"https://s3-us-west-2.amazonaws.com/slack-files2/avatars/2014-12-08/3169312262_0fd829d0c6e1e196d083_88.jpg","image_102":"https://s3-us-west-2.amazonaws.com/slack-files2/avatars/2014-12-08/3169312262_0fd829d0c6e1e196d083_102.jpg","image_132":"https://s3-us-west-2.amazonaws.com/slack-files2/avatars/2014-12-08/3169312262_0fd829d0c6e1e196d083_132.jpg","image_original":"https://s3-us-west-2.amazonaws.com/slack-files2/avatars/2014-12-08/3169312262_0fd829d0c6e1e196d083_original.jpg"},"over_storage_limit":false,"plan":"std"},"latest_event_ts":"1428411548.000000",
-"channels":[{"id":"C0350HMMG","name":"2015capexqa","is_channel":true,"created":1418057433,"creator":"U033Z341Z","is_archived":false,"is_general":false,"is_member":true,"last_read":"1428353010.000054","latest":{"type":"message","user":"U033Z49JK","text":"yeah","ts":"1428353010.000054"},"unread_count":0,"unread_count_display":0,"members":["U033Z341Z","U033Z49JK","U033Z4QPM","U035917C2"],"topic":{"value":"https://projects.townsquaredigital.com/projects/capex-system/","creator":"U035917C2","last_set":1418671917},"purpose":{"value":"","creator":"","last_set":0}},{"id":"C03404MJX","name":"2015hrsystem","is_channel":true,"created":1417632451,"creator":"U033Z341Z","is_archived":false,"is_general":false,"is_starred":true,"is_member":true,"last_read":"1428006351.000024","latest":{"type":"message","user":"U033Z341Z","text":"cool","ts":"1428006351.000024"},"unread_count":0,"unread_count_display":0,"members":["U033Z341Z","U033Z49JK","U033Z4QPM","U035917C2","U03ANVBRK"],"topic":{"value":"http://labtickets.meteor.com/products/YbMHDEuMG3u36ogCu/","creator":"U035917C2","last_set":1424279244},"purpose":{"value":"","creator":"","last_set":0}},{"id":"C03JADC88","name":"2015tradesystem","is_channel":true,"created":1423098909,"creator":"U033Z341Z","is_archived":false,"is_general":false,"is_member":true,"last_read":"1425929709.000029","latest":{"text":"*[Approved totals endpoint]* by _Mike Wolstat_ \n<http://labtickets.meteor.com/features/a6jozSuoHohPv8LwS>\n<https://townsquarelab.com/capital/#/2015/dash/approved>","username":"produx®","bot_id":"B03EAPT74","type":"message","subtype":"bot_message","ts":"1425929709.000029"},"unread_count":0,"unread_count_display":0,"members":["U033Z341Z","U033Z49JK","U033Z4QPM"],"topic":{"value":"","creator":"","last_set":0},"purpose":{"value":"","creator":"","last_set":0}},{"id":"C03J6L79S","name":"4-0-design","is_channel":true,"created":1423076593,"creator":"U033GCPL5","is_archived":false,"is_general":false,"is_member":false},{"id":"C03HDAQ4P","name":"ademopublic","is_channel":true,"created":1422906735,"creator":"U033Z341Z","is_archived":false,"is_general":false,"is_member":false},{"id":"C03CCSMJ1","name":"america-on-tap-app","is_channel":true,"created":1421337711,"creator":"U033GCPL5","is_archived":false,"is_general":false,"is_member":false},{"id":"C03CEGST1","name":"analytics","is_channel":true,"created":1421346551,"creator":"U035917C2","is_archived":false,"is_general":false,"is_member":false},{"id":"C045YG6LS","name":"anthony-test2","is_channel":true,"created":1427485245,"creator":"U03ANVBRK","is_archived":false,"is_general":false,"is_member":false},{"id":"C03C596L9","name":"asana-feed-test","is_channel":true,"created":1421272692,"creator":"U033GCPL5","is_archived":true,"is_general":false,"is_member":false},{"id":"C0460N7J8","name":"blahblahblah","is_channel":true,"created":1427492593,"creator":"U033Z341Z","is_archived":false,"is_general":false,"is_member":false},{"id":"C03G31Z8M","name":"collab-room","is_channel":true,"created":1422485807,"creator":"U033GCPL5","is_archived":false,"is_general":false,"is_member":true,"last_read":"1427919113.000081","latest":{"type":"message","user":"U0352BZE1","text":"attachment works","ts":"1427919113.000081"},"unread_count":0,"unread_count_display":0,"members":["U033GCPL5","U033GHMQX","U033H5T9X","U033J331Q","U033Z341Z","U033Z49JK","U033Z4QPM","U034K5X29","U034LQWPY","U034YLRKH","U034YTEQK","U034YU29X","U034Z189D","U034Z2117","U0350DX5S","U0350G96N","U0350N66G","U03520E43","U0352BZE1","U035917C2","U035NEGDL","U0363LD25","U0399J1QD","U039AAUV9","U03ANV93M","U03ANVBRK","U03AP3LNV","U03CSGXU8","U03F8GXRF","U03FADGLH","U03FAK08J","U03GH4YR4"],"topic":{"value":"","creator":"","last_set":0},"purpose":{"value":"Forum to post problems and issues for group problem solving and innovation","creator":"U033GCPL5","last_set":1422485807}},{"id":"C046JSNLR","name":"converseallstars","is_channel":true,"created":1427479719,"creator":"U033Z341Z","is_archived":false,"is_general":false,"is_member":false},{"id":"C033GCPLP","name":"general-team","is_channel":true,"created":1417446266,"creator":"U033GCPL5","is_archived":false,"is_general":true,"is_member":true,"last_read":"1428365887.000529","latest":{"type":"message","user":"U034Z2117","text":"doing a software update and rebooting...","ts":"1428412058.000530"},"unread_count":1,"unread_count_display":1,"members":["U033GCPL5","U033GHMQX","U033H5T9X","U033J331Q","U033Z341Z","U033Z49JK","U033Z4QPM","U034K5X29","U034LQWPY","U034YLRKH","U034YTEQK","U034Z189D","U034Z2117","U0350N66G","U0352BZE1","U035917C2","U035NEGDL","U0363LD25","U0399J1QD","U039AAUV9","U03ANV93M","U03ANVBRK","U03AP3LNV","U03CSGXU8","U03F8GXRF","U03FADGLH","U03FAK08J","U03FKE27V","U03GH4YR4","U03PVE5PH","U045TMWF7","U046GMUEH"],"topic":{"value":"http://j.mp/tsmdp-links","creator":"U034LQWPY","last_set":1424706963},"purpose":{"value":"This channel is for team-wide communication and announcements. All team members are in this channel.","creator":"","last_set":0}},{"id":"C0465N5TY","name":"gitlabbot","is_channel":true,"created":1427547761,"creator":"U0363LD25","is_archived":false,"is_general":false,"is_member":false},{"id":"C03HRHVJ8","name":"harrysapitest","is_channel":true,"created":1422979740,"creator":"U033Z341Z","is_archived":false,"is_general":false,"is_member":false},{"id":"C046QGH89","name":"ign-asdasd-qweqwe","is_channel":true,"created":1427495338,"creator":"U033Z341Z","is_archived":false,"is_general":false,"is_member":false},{"id":"C046QGJ1P","name":"ign-asdasd-qweqwe-1","is_channel":true,"created":1427495346,"creator":"U033Z341Z","is_archived":false,"is_general":false,"is_member":false},{"id":"C046QUQMT","name":"ign-democampaign","is_channel":true,"created":1427497542,"creator":"U033Z341Z","is_archived":false,"is_general":false,"is_member":false},{"id":"C0463BF9S","name":"ign-democampaigner","is_channel":true,"created":1427510036,"creator":"U033Z341Z","is_archived":false,"is_general":false,"is_member":false},{"id":"C046R79PA","name":"ign-ignitecampaign","is_channel":true,"created":1427734816,"creator":"U033Z341Z","is_archived":false,"is_general":false,"is_member":false},{"id":"C0463639U","name":"ign-jrwhopper","is_channel":true,"created":1427508109,"creator":"U033Z341Z","is_archived":false,"is_general":false,"is_member":false},{"id":"C047E6D7F","name":"ign-prepresentationde","is_channel":true,"created":1427732128,"creator":"U033Z341Z","is_archived":false,"is_general":false,"is_member":false},{"id":"C046QPX13","name":"ign-testing","is_channel":true,"created":1427496669,"creator":"U033Z341Z","is_archived":false,"is_general":false,"is_member":false},{"id":"C046Q8ECM","name":"ignite-asdasd-qweqwe","is_channel":true,"created":1427493894,"creator":"U033Z341Z","is_archived":false,"is_general":false,"is_member":false},{"id":"C04619C40","name":"ignite-asdasd-qweqwe-","is_channel":true,"created":1427495092,"creator":"U033Z341Z","is_archived":false,"is_general":false,"is_member":false},{"id":"C0357KCH9","name":"ignite-public","is_channel":true,"created":1418136622,"creator":"U034LQWPY","is_archived":false,"is_general":false,"is_member":false},{"id":"C03DMHMRK","name":"issue-tracker","is_channel":true,"created":1421781061,"creator":"U034YTEQK","is_archived":false,"is_general":false,"is_member":false},{"id":"C046GHCH7","name":"johnk-api-test","is_channel":true,"created":1427471661,"creator":"U039AAUV9","is_archived":false,"is_general":false,"is_member":false},{"id":"C03FB9N0F","name":"lab-node-release","is_channel":true,"created":1422308680,"creator":"U033Z49JK","is_archived":false,"is_general":false,"is_starred":true,"is_member":true,"last_read":"1428077557.000018","latest":{"type":"message","user":"U033Z49JK","text":"deployed 446","ts":"1428077557.000018"},"unread_count":0,"unread_count_display":0,"members":["U033Z341Z","U033Z49JK","U0399J1QD","U03ANVBRK","U03AP3LNV"],"topic":{"value":"","creator":"","last_set":0},"purpose":{"value":"","creator":"","last_set":0}},{"id":"C03HE4T87","name":"labcampaigns","is_channel":true,"created":1422911339,"creator":"U033Z341Z","is_archived":false,"is_general":false,"is_member":false},{"id":"C03FN5TRE","name":"newsletters","is_channel":true,"created":1422374567,"creator":"U03FKE27V","is_archived":false,"is_general":false,"is_member":false},{"id":"C03DPGV8R","name":"open-bugs","is_channel":true,"created":1421792575,"creator":"U035917C2","is_archived":false,"is_general":false,"is_member":false},{"id":"C033GCPM1","name":"random","is_channel":true,"created":1417446266,"creator":"U033GCPL5","is_archived":true,"is_general":false,"is_member":false},{"id":"C0458GXEA","name":"slack-project-1","is_channel":true,"created":1427369871,"creator":"U033GCPL5","is_archived":false,"is_general":false,"is_member":true,"last_read":"1428411644.001322","latest":{"type":"message","user":"U0352BZE1","text":"test","ts":"1428412070.001323"},"unread_count":1,"unread_count_display":1,"members":["U033GCPL5","U033J331Q","U033Z49JK","U034YLRKH","U0352BZE1","U03PVE5PH"],"topic":{"value":"TEAM COFFEE","creator":"U033Z49JK","last_set":1427467795},"purpose":{"value":"Project:  Chrome plugin showing slack updates (notifications number count and direct messages)","creator":"U033GCPL5","last_set":1427369872}},{"id":"C045XMBN9","name":"slack-project-2","is_channel":true,"created":1427370044,"creator":"U033GCPL5","is_archived":false,"is_general":false,"is_member":false},{"id":"C045XNE99","name":"slack-project-3","is_channel":true,"created":1427370289,"creator":"U033GCPL5","is_archived":false,"is_general":false,"is_member":false},{"id":"C045XNHNM","name":"slack-project-4","is_channel":true,"created":1427370319,"creator":"U033GCPL5","is_archived":false,"is_general":false,"is_member":false},{"id":"C0458K266","name":"slack-project-5","is_channel":true,"created":1427370344,"creator":"U033GCPL5","is_archived":false,"is_general":false,"is_member":false},{"id":"C0458K9EG","name":"slack-project-6","is_channel":true,"created":1427370371,"creator":"U033GCPL5","is_archived":false,"is_general":false,"is_member":false},{"id":"C045XPEBV","name":"slack-project-7","is_channel":true,"created":1427370476,"creator":"U033GCPL5","is_archived":false,"is_general":false,"is_member":false},{"id":"C0414R32S","name":"social-vip-overlays","is_channel":true,"created":1426256311,"creator":"U033J331Q","is_archived":false,"is_general":false,"is_member":false},{"id":"C03A55FTZ","name":"test-channel","is_channel":true,"created":1420569755,"creator":"U033GCPL5","is_archived":true,"is_general":false,"is_member":false},{"id":"C044EV265","name":"test-sow","is_channel":true,"created":1427142880,"creator":"U0399J1QD","is_archived":false,"is_general":false,"is_member":false},{"id":"C03T66YQZ","name":"thelabdev","is_channel":true,"created":1425492602,"creator":"U033Z49JK","is_archived":false,"is_general":false,"is_member":true,"last_read":"1426898612.000011","latest":{"type":"message","user":"U033Z49JK","text":"cool","ts":"1426898612.000011"},"unread_count":0,"unread_count_display":0,"members":["U033Z341Z","U033Z49JK","U033Z4QPM","U035917C2"],"topic":{"value":"","creator":"","last_set":0},"purpose":{"value":"A channel for all lab products","creator":"U033Z49JK","last_set":1425492602}},{"id":"C03906TU8","name":"tsm-sponsorships","is_channel":true,"created":1419883553,"creator":"U035NEGDL","is_archived":false,"is_general":false,"is_member":false},{"id":"C03DM5HTX","name":"writeup-list","is_channel":true,"created":1421778760,"creator":"U034YTEQK","is_archived":true,"is_general":false,"is_member":false}],"groups":[{"id":"G03C4T7HR","name":"server-status","is_group":true,"created":1421270399,"creator":"U033GCPL5","is_archived":false,"is_open":true,"last_read":"1428327478.000414","latest":{"type":"message","user":"U033J331Q","text":"Yeah seems so","ts":"1428327478.000414"},"unread_count":0,"unread_count_display":0,"members":["U033GCPL5","U033J331Q","U033Z49JK","U034K5X29","U034YLRKH","U034YTEQK","U034Z189D","U035917C2","U035NEGDL","U0363LD25","U0399J1QD","U039AAUV9","U03ANV93M","U03ANVBRK","U03AP3LNV"],"topic":{"value":"","creator":"","last_set":0},"purpose":{"value":"","creator":"","last_set":0}},{"id":"G03C4TP0R","name":"slack-feedback","is_group":true,"created":1421270476,"creator":"U033GCPL5","is_archived":false,"is_open":true,"last_read":"1421270476.000018","latest":{"type":"message","user":"USLACKBOT","text":"<!group>: The import of this group from the #slack-feedback channel is complete.","ts":"1421270476.000018"},"unread_count":0,"unread_count_display":0,"members":["U033GCPL5","U033GHMQX","U033H5T9X","U033J331Q","U033Z341Z","U033Z49JK","U033Z4QPM","U034K5X29","U034YLRKH","U034YTEQK","U034Z2117","U035917C2","U0363LD25"],"topic":{"value":"","creator":"","last_set":0},"purpose":{"value":"Where we can post about the good &amp;amp; bad aspects of using slack over skype","creator":"U033GCPL5","last_set":1421270476}},{"id":"G041317SR","name":"thanks_jose","is_group":true,"created":1426259203,"creator":"U034LQWPY","is_archived":false,"is_open":true,"last_read":"1426518877.000155","latest":{"user":"U03CSGXU8","type":"message","subtype":"group_leave","text":"<@U03CSGXU8|ericwedge> has left the group","ts":"1426518877.000155"},"unread_count":0,"unread_count_display":0,"members":["U033GCPL5","U033GHMQX","U033H5T9X","U033J331Q","U033Z341Z","U033Z49JK","U033Z4QPM","U034K5X29","U034LQWPY","U034YLRKH","U034YTEQK","U034Z189D","U034Z2117","U0350DX5S","U0350G96N","U0350N66G","U03520E43","U0352BZE1","U035917C2","U035NEGDL","U0363LD25","U0399J1QD","U039AAUV9","U03ANV93M","U03ANVBRK","U03AP3LNV","U03F8GXRF","U03F8K3HT","U03FADGLH","U03FAK08J","U03GH4YR4","U03PVE5PH"],"topic":{"value":"","creator":"","last_set":0},"purpose":{"value":"","creator":"","last_set":0}},{"id":"G041AL4M2","name":"tsm-product-roadmap","is_group":true,"created":1426282583,"creator":"U033GCPL5","is_archived":false,"is_open":true,"last_read":"1426520932.000032","latest":{"user":"U0399J1QD","inviter":"U034YTEQK","type":"message","subtype":"group_join","text":"<@U0399J1QD|sowmiya> has joined the group","ts":"1426520932.000032"},"unread_count":0,"unread_count_display":0,"members":["U033GCPL5","U033GHMQX","U033H5T9X","U033J331Q","U033Z341Z","U033Z49JK","U034K5X29","U034LQWPY","U034YLRKH","U034YTEQK","U034Z189D","U034Z2117","U0350G96N","U0350N66G","U03520E43","U0352BZE1","U035917C2","U0363LD25","U0399J1QD","U039AAUV9","U03ANV93M","U03ANVBRK","U03CSGXU8","U03F8GXRF","U03FADGLH","U03FAK08J","U03GH4YR4","U03PVE5PH"],"topic":{"value":"","creator":"","last_set":0},"purpose":{"value":"Forum to share and discuss our overall product roadmap plans.  Roadmap: https://app.roadmunk.com/publish/462fd2899f92aa03f65a7f20755f7e9489359e92  (digitalproducts)","creator":"U033GCPL5","last_set":1426517680}},{"id":"G03F8RAUZ","name":"tsm-release","is_group":true,"created":1422294788,"creator":"U033J331Q","is_archived":false,"is_open":true,"last_read":"1428355670.000098","latest":{"type":"message","user":"U034Z189D","text":"you need it?","ts":"1428355670.000098"},"unread_count":0,"unread_count_display":0,"members":["U033GCPL5","U033GHMQX","U033J331Q","U033Z341Z","U033Z49JK","U034K5X29","U034LQWPY","U034YLRKH","U034YTEQK","U034Z189D","U034Z2117","U0350DX5S","U035917C2","U035NEGDL","U0363LD25","U0399J1QD","U039AAUV9","U03ANV93M","U03ANVBRK","U03AP3LNV","U03F8GXRF","U03FADGLH"],"topic":{"value":"","creator":"","last_set":0},"purpose":{"value":"All Code Deployments will be announced here.","creator":"U033J331Q","last_set":1422294790}},{"id":"G03C6T9RW","name":"water-cooler","is_group":true,"created":1421270421,"creator":"U033J331Q","is_archived":false,"is_open":true,"last_read":"1428087146.000413","latest":{"type":"message","user":"U035NEGDL","text":"easter!!!","ts":"1428087146.000413"},"unread_count":0,"unread_count_display":0,"members":["U033GCPL5","U033GHMQX","U033H5T9X","U033J331Q","U033Z341Z","U033Z49JK","U034K5X29","U034LQWPY","U034YLRKH","U034YTEQK","U034YU29X","U034Z189D","U034Z2117","U0350DX5S","U0350G96N","U0350N66G","U0352BZE1","U035917C2","U035NEGDL","U0363LD25","U0399J1QD","U039AAUV9","U03ANV93M","U03ANVBRK","U03AP3LNV","U03F8GXRF","U03FADGLH","U03FKE27V","U03PVE5PH"],"topic":{"value":"","creator":"","last_set":0},"purpose":{"value":"A place for non-work banter, links, articles of interest, humor or anything else which you'd like concentrated in some place other than work-related channels.","creator":"U033J331Q","last_set":1421270421}},{"id":"G03FE3E8A","name":"weekly-call-dev-sys","is_group":true,"created":1422311414,"creator":"U033J331Q","is_archived":false,"is_open":true,"last_read":"1428335821.000161","latest":{"type":"message","user":"U034K5X29","text":"<http://thenewsherald.com/articles/2013/03/31/news/doc5155f0e81b855927255529.txt>","attachments":[{"service_name":"The News Herald - Serving Southgate, MI","title":"TRENTON: Thousands flock to Elizabeth Park for annual Marshmallow Drop","title_link":"http://thenewsherald.com/articles/2013/03/31/news/doc5155f0e81b855927255529.txt","text":"TRENTON: Thousands flock to Elizabeth Park for annual Marshmallow Drop - TRENTON — The sun was bright, the air was comfortably crisp and the marshmallows were plentiful.","fallback":"The News Herald - Serving Southgate, MI: TRENTON: Thousands flock to Elizabeth Park for annual Marshmallow Drop","image_url":"http://www.thenewsherald.com/content/articles/2013/03/31/news/doc5155f0e81b855927255529.jpg","from_url":"http://thenewsherald.com/articles/2013/03/31/news/doc5155f0e81b855927255529.txt","image_width":377,"image_height":250,"image_bytes":31060,"id":1}],"ts":"1428335821.000161"},"unread_count":0,"unread_count_display":0,"members":["U033GCPL5","U033GHMQX","U033J331Q","U033Z341Z","U033Z49JK","U034K5X29","U034LQWPY","U034YLRKH","U034YTEQK","U034Z189D","U034Z2117","U0350DX5S","U035917C2","U035NEGDL","U0363LD25","U0399J1QD","U039AAUV9","U03ANV93M","U03ANVBRK","U03AP3LNV","U03CSGXU8","U03F8GXRF","U03FADGLH"],"topic":{"value":"","creator":"","last_set":0},"purpose":{"value":"Reserved for Weekly Call with Dev, Systems &amp; QA Team","creator":"U033J331Q","last_set":1422311417}},{"id":"G03HD7NF8","name":"weekly-team-meeting","is_group":true,"created":1422894377,"creator":"U033GCPL5","is_archived":false,"is_open":true,"last_read":"1427731679.000004","latest":{"type":"message","user":"U033Z49JK","text":"slackUserID:apiToken","ts":"1427731679.000004"},"unread_count":0,"unread_count_display":0,"members":["U033GCPL5","U033GHMQX","U033H5T9X","U033J331Q","U033Z341Z","U033Z49JK","U033Z4QPM","U034K5X29","U034LQWPY","U034YLRKH","U034YTEQK","U034Z189D","U034Z2117","U0350DX5S","U0350G96N","U0350N66G","U03520E43","U0352BZE1","U035917C2","U035NEGDL","U0363LD25","U0399J1QD","U039AAUV9","U03ANV93M","U03ANVBRK","U03AP3LNV","U03CSGXU8","U03F8GXRF","U03FADGLH","U03FAK08J","U03GH4YR4","U03PVE5PH"],"topic":{"value":"Call info: 559-726-1300 / ID: 158114","creator":"U0363LD25","last_set":1422895053},"purpose":{"value":"Meeting to review weekly team updates, tasks and news:  Call info: 559-726-1300 / ID: 158114","creator":"U033GCPL5","last_set":1422895152}}],
-"ims":[{"id":"D033Z49JR","is_im":true,"user":"USLACKBOT","created":1417623497,"last_read":"1421950826.000015","latest":{"text":"wolstat- [HR: Cleanup Market Dashboard] Has been assigned to you by Harry Ward <http://labtickets.meteor.com/features/X6qCNLkrkdkadpcfR>","username":"produx®","bot_id":"B03EAPT74","type":"message","subtype":"bot_message","ts":"1421950826.000015"},"unread_count":0,"unread_count_display":0,"is_open":true},{"id":"D033Z49JX","is_im":true,"user":"U033GCPL5","created":1417623497,"last_read":"1426105883.000003","latest":{"type":"message","user":"U033Z49JK","text":"yeah","ts":"1426105883.000003"},"unread_count":0,"unread_count_display":0,"is_open":true},{"id":"D033Z49JZ","is_im":true,"user":"U033GHMQX","created":1417623497,"last_read":"0000000000.000000","latest":null,"unread_count":0,"unread_count_display":0,"is_open":false},{"id":"D033Z49K3","is_im":true,"user":"U033H5T9X","created":1417623497,"last_read":"0000000000.000000","latest":null,"unread_count":0,"unread_count_display":0,"is_open":false},{"id":"D033Z49K7","is_im":true,"user":"U033J331Q","created":1417623497,"last_read":"1428091513.000004","latest":{"type":"message","user":"U033J331Q","text":"foo","ts":"1428091513.000004"},"unread_count":0,"unread_count_display":0,"is_open":true},{"id":"D033Z49K5","is_im":true,"user":"U033Z341Z","created":1417623497,"is_starred":true,"last_read":"1427826385.000008","latest":{"type":"message","user":"U033Z341Z","text":"tsting","ts":"1427826385.000008"},"unread_count":0,"unread_count_display":0,"is_open":true},{"id":"D033Z4QQP","is_im":true,"user":"U033Z4QPM","created":1417623668,"last_read":"1418953445.000031","latest":{"type":"message","user":"U033Z4QPM","text":"about to push a change to prod","ts":"1418953445.000031"},"unread_count":0,"unread_count_display":0,"is_open":false},{"id":"D034K5X3M","is_im":true,"user":"U034K5X29","created":1417807041,"last_read":"0000000000.000000","latest":null,"unread_count":0,"unread_count_display":0,"is_open":false},{"id":"D034LQWQJ","is_im":true,"user":"U034LQWPY","created":1417808008,"last_read":"1427808012.000021","latest":{"type":"message","user":"U034LQWPY","text":"thanks","ts":"1427808012.000021"},"unread_count":0,"unread_count_display":0,"is_open":true},{"id":"D034YLRL1","is_im":true,"user":"U034YLRKH","created":1418054977,"last_read":"1428091088.000104","latest":{"type":"message","user":"U033Z49JK","text":"thanks","ts":"1428091088.000104"},"unread_count":0,"unread_count_display":0,"is_open":true},{"id":"D034YTER1","is_im":true,"user":"U034YTEQK","created":1418056507,"last_read":"0000000000.000000","latest":null,"unread_count":0,"unread_count_display":0,"is_open":false},{"id":"D034YU2AD","is_im":true,"user":"U034YU29X","created":1418056633,"last_read":"0000000000.000000","latest":null,"unread_count":0,"unread_count_display":0,"is_open":false},{"id":"D046095GE","is_im":true,"user":"U034Z2117","created":1427490574,"last_read":"0000000000.000000","latest":null,"unread_count":0,"unread_count_display":0,"is_open":true},{"id":"D0350DX6L","is_im":true,"user":"U0350DX5S","created":1418056594,"last_read":"0000000000.000000","latest":null,"unread_count":0,"unread_count_display":0,"is_open":false},{"id":"D0350G97Y","is_im":true,"user":"U0350G96N","created":1418057155,"last_read":"0000000000.000000","latest":null,"unread_count":0,"unread_count_display":0,"is_open":false},{"id":"D0350N67Q","is_im":true,"user":"U0350N66G","created":1418058510,"last_read":"0000000000.000000","latest":null,"unread_count":0,"unread_count_display":0,"is_open":false},{"id":"D03520E4K","is_im":true,"user":"U03520E43","created":1418078186,"last_read":"0000000000.000000","latest":null,"unread_count":0,"unread_count_display":0,"is_open":false},{"id":"D0352BZE7","is_im":true,"user":"U0352BZE1","created":1418081322,"last_read":"0000000000.000000","latest":null,"unread_count":0,"unread_count_display":0,"is_open":false},{"id":"D038G3AEW","is_im":true,"user":"U035917C2","created":1419437963,"last_read":"1426103078.000005","latest":{"type":"message","user":"U035917C2","text":"hhaha","ts":"1426103078.000005"},"unread_count":0,"unread_count_display":0,"is_open":true},{"id":"D035NEGFQ","is_im":true,"user":"U035NEGDL","created":1418248039,"last_read":"1427486385.000036","latest":{"type":"message","user":"U033Z49JK","text":"so far so good","ts":"1427486385.000036"},"unread_count":0,"unread_count_display":0,"is_open":true},{"id":"D0363LD2R","is_im":true,"user":"U0363LD25","created":1418402871,"last_read":"0000000000.000000","latest":null,"unread_count":0,"unread_count_display":0,"is_open":false},{"id":"D041VRQE8","is_im":true,"user":"U03AP3LNV","created":1426510262,"last_read":"1426540927.000020","latest":{"type":"message","user":"U033Z49JK","text":"nice","ts":"1426540927.000020"},"unread_count":0,"unread_count_display":0,"is_open":true},{"id":"D040V32DN","is_im":true,"user":"U03FADGLH","created":1426192511,"last_read":"1426194298.000037","latest":{"type":"message","user":"U033Z49JK","text":"ducking out, ttyl","ts":"1426194298.000037"},"unread_count":0,"unread_count_display":0,"is_open":true},{"id":"D03FAK0AC","is_im":true,"user":"U03FAK08J","created":1422292058,"last_read":"0000000000.000000","latest":null,"unread_count":0,"unread_count_display":0,"is_open":false}],
+"channels":[
+{"id":"C0350HMMG",
+"name":"2015capexqa",
+"is_channel":true,
+"created":1418057433,
+"creator":"U033Z341Z",
+"is_archived":false,
+"is_general":false,
+"is_member":true,
+"last_read":"1428353010.000054",
+"latest":{"type":"message",
+"user":"U033Z49JK",
+"text":"yeah",
+"ts":"1428353010.000054"},
+"unread_count":0,"unread_count_display":0,
+"members":["U033Z341Z","U033Z49JK","U033Z4QPM","U035917C2"],
+"topic":{"value":"https://projects.townsquaredigital.com/projects/capex-system/",
+"creator":"U035917C2","last_set":1418671917},
+"purpose":{"value":"","creator":"","last_set":0}},
+
+{"id":"C03404MJX","name":"2015hrsystem","is_channel":true,"created":1417632451,"creator":"U033Z341Z","is_archived":false,"is_general":false,"is_starred":true,"is_member":true,"last_read":"1428006351.000024",
+	"latest":{"type":"message","user":"U033Z341Z","text":"cool","ts":"1428006351.000024"},
+	"unread_count":0,"unread_count_display":0,"members":["U033Z341Z","U033Z49JK","U033Z4QPM","U035917C2","U03ANVBRK"],"topic":{"value":"http://labtickets.meteor.com/products/YbMHDEuMG3u36ogCu/","creator":"U035917C2","last_set":1424279244},"purpose":{"value":"","creator":"","last_set":0}},
+{"id":"C03JADC88","name":"2015tradesystem","is_channel":true,"created":1423098909,"creator":"U033Z341Z","is_archived":false,"is_general":false,"is_member":true,"last_read":"1425929709.000029","latest":{"text":"*[Approved totals endpoint]* by _Mike Wolstat_ \n<http://labtickets.meteor.com/features/a6jozSuoHohPv8LwS>\n<https://townsquarelab.com/capital/#/2015/dash/approved>","username":"produx®","bot_id":"B03EAPT74","type":"message","subtype":"bot_message","ts":"1425929709.000029"},"unread_count":0,"unread_count_display":0,"members":["U033Z341Z","U033Z49JK","U033Z4QPM"],"topic":{"value":"","creator":"","last_set":0},"purpose":{"value":"","creator":"","last_set":0}},{"id":"C03J6L79S","name":"4-0-design","is_channel":true,"created":1423076593,"creator":"U033GCPL5","is_archived":false,"is_general":false,"is_member":false},{"id":"C03HDAQ4P","name":"ademopublic","is_channel":true,"created":1422906735,"creator":"U033Z341Z","is_archived":false,"is_general":false,"is_member":false},{"id":"C03CCSMJ1","name":"america-on-tap-app","is_channel":true,"created":1421337711,"creator":"U033GCPL5","is_archived":false,"is_general":false,"is_member":false},{"id":"C03CEGST1","name":"analytics","is_channel":true,"created":1421346551,"creator":"U035917C2","is_archived":false,"is_general":false,"is_member":false},{"id":"C045YG6LS","name":"anthony-test2","is_channel":true,"created":1427485245,"creator":"U03ANVBRK","is_archived":false,"is_general":false,"is_member":false},{"id":"C03C596L9","name":"asana-feed-test","is_channel":true,"created":1421272692,"creator":"U033GCPL5","is_archived":true,"is_general":false,"is_member":false},{"id":"C0460N7J8","name":"blahblahblah","is_channel":true,"created":1427492593,"creator":"U033Z341Z","is_archived":false,"is_general":false,"is_member":false},{"id":"C03G31Z8M","name":"collab-room","is_channel":true,"created":1422485807,"creator":"U033GCPL5","is_archived":false,"is_general":false,"is_member":true,"last_read":"1427919113.000081","latest":{"type":"message","user":"U0352BZE1","text":"attachment works","ts":"1427919113.000081"},"unread_count":0,"unread_count_display":0,"members":["U033GCPL5","U033GHMQX","U033H5T9X","U033J331Q","U033Z341Z","U033Z49JK","U033Z4QPM","U034K5X29","U034LQWPY","U034YLRKH","U034YTEQK","U034YU29X","U034Z189D","U034Z2117","U0350DX5S","U0350G96N","U0350N66G","U03520E43","U0352BZE1","U035917C2","U035NEGDL","U0363LD25","U0399J1QD","U039AAUV9","U03ANV93M","U03ANVBRK","U03AP3LNV","U03CSGXU8","U03F8GXRF","U03FADGLH","U03FAK08J","U03GH4YR4"],"topic":{"value":"","creator":"","last_set":0},"purpose":{"value":"Forum to post problems and issues for group problem solving and innovation","creator":"U033GCPL5","last_set":1422485807}},{"id":"C046JSNLR","name":"converseallstars","is_channel":true,"created":1427479719,"creator":"U033Z341Z","is_archived":false,"is_general":false,"is_member":false},{"id":"C033GCPLP","name":"general-team","is_channel":true,"created":1417446266,"creator":"U033GCPL5","is_archived":false,"is_general":true,"is_member":true,"last_read":"1428365887.000529","latest":{"type":"message","user":"U034Z2117","text":"doing a software update and rebooting...","ts":"1428412058.000530"},"unread_count":1,"unread_count_display":1,"members":["U033GCPL5","U033GHMQX","U033H5T9X","U033J331Q","U033Z341Z","U033Z49JK","U033Z4QPM","U034K5X29","U034LQWPY","U034YLRKH","U034YTEQK","U034Z189D","U034Z2117","U0350N66G","U0352BZE1","U035917C2","U035NEGDL","U0363LD25","U0399J1QD","U039AAUV9","U03ANV93M","U03ANVBRK","U03AP3LNV","U03CSGXU8","U03F8GXRF","U03FADGLH","U03FAK08J","U03FKE27V","U03GH4YR4","U03PVE5PH","U045TMWF7","U046GMUEH"],"topic":{"value":"http://j.mp/tsmdp-links","creator":"U034LQWPY","last_set":1424706963},"purpose":{"value":"This channel is for team-wide communication and announcements. All team members are in this channel.","creator":"","last_set":0}},{"id":"C0465N5TY","name":"gitlabbot","is_channel":true,"created":1427547761,"creator":"U0363LD25","is_archived":false,"is_general":false,"is_member":false},{"id":"C03HRHVJ8","name":"harrysapitest","is_channel":true,"created":1422979740,"creator":"U033Z341Z","is_archived":false,"is_general":false,"is_member":false},{"id":"C046QGH89","name":"ign-asdasd-qweqwe","is_channel":true,"created":1427495338,"creator":"U033Z341Z","is_archived":false,"is_general":false,"is_member":false},{"id":"C046QGJ1P","name":"ign-asdasd-qweqwe-1","is_channel":true,"created":1427495346,"creator":"U033Z341Z","is_archived":false,"is_general":false,"is_member":false},{"id":"C046QUQMT","name":"ign-democampaign","is_channel":true,"created":1427497542,"creator":"U033Z341Z","is_archived":false,"is_general":false,"is_member":false},{"id":"C0463BF9S","name":"ign-democampaigner","is_channel":true,"created":1427510036,"creator":"U033Z341Z","is_archived":false,"is_general":false,"is_member":false},{"id":"C046R79PA","name":"ign-ignitecampaign","is_channel":true,"created":1427734816,"creator":"U033Z341Z","is_archived":false,"is_general":false,"is_member":false},{"id":"C0463639U","name":"ign-jrwhopper","is_channel":true,"created":1427508109,"creator":"U033Z341Z","is_archived":false,"is_general":false,"is_member":false},{"id":"C047E6D7F","name":"ign-prepresentationde","is_channel":true,"created":1427732128,"creator":"U033Z341Z","is_archived":false,"is_general":false,"is_member":false},{"id":"C046QPX13","name":"ign-testing","is_channel":true,"created":1427496669,"creator":"U033Z341Z","is_archived":false,"is_general":false,"is_member":false},{"id":"C046Q8ECM","name":"ignite-asdasd-qweqwe","is_channel":true,"created":1427493894,"creator":"U033Z341Z","is_archived":false,"is_general":false,"is_member":false},{"id":"C04619C40","name":"ignite-asdasd-qweqwe-","is_channel":true,"created":1427495092,"creator":"U033Z341Z","is_archived":false,"is_general":false,"is_member":false},{"id":"C0357KCH9","name":"ignite-public","is_channel":true,"created":1418136622,"creator":"U034LQWPY","is_archived":false,"is_general":false,"is_member":false},{"id":"C03DMHMRK","name":"issue-tracker","is_channel":true,"created":1421781061,"creator":"U034YTEQK","is_archived":false,"is_general":false,"is_member":false},{"id":"C046GHCH7","name":"johnk-api-test","is_channel":true,"created":1427471661,"creator":"U039AAUV9","is_archived":false,"is_general":false,"is_member":false},{"id":"C03FB9N0F","name":"lab-node-release","is_channel":true,"created":1422308680,"creator":"U033Z49JK","is_archived":false,"is_general":false,"is_starred":true,"is_member":true,"last_read":"1428077557.000018","latest":{"type":"message","user":"U033Z49JK","text":"deployed 446","ts":"1428077557.000018"},"unread_count":0,"unread_count_display":0,"members":["U033Z341Z","U033Z49JK","U0399J1QD","U03ANVBRK","U03AP3LNV"],"topic":{"value":"","creator":"","last_set":0},"purpose":{"value":"","creator":"","last_set":0}},{"id":"C03HE4T87","name":"labcampaigns","is_channel":true,"created":1422911339,"creator":"U033Z341Z","is_archived":false,"is_general":false,"is_member":false},{"id":"C03FN5TRE","name":"newsletters","is_channel":true,"created":1422374567,"creator":"U03FKE27V","is_archived":false,"is_general":false,"is_member":false},{"id":"C03DPGV8R","name":"open-bugs","is_channel":true,"created":1421792575,"creator":"U035917C2","is_archived":false,"is_general":false,"is_member":false},{"id":"C033GCPM1","name":"random","is_channel":true,"created":1417446266,"creator":"U033GCPL5","is_archived":true,"is_general":false,"is_member":false},{"id":"C0458GXEA","name":"slack-project-1","is_channel":true,"created":1427369871,"creator":"U033GCPL5","is_archived":false,"is_general":false,"is_member":true,"last_read":"1428411644.001322","latest":{"type":"message","user":"U0352BZE1","text":"test","ts":"1428412070.001323"},"unread_count":1,"unread_count_display":1,"members":["U033GCPL5","U033J331Q","U033Z49JK","U034YLRKH","U0352BZE1","U03PVE5PH"],"topic":{"value":"TEAM COFFEE","creator":"U033Z49JK","last_set":1427467795},"purpose":{"value":"Project:  Chrome plugin showing slack updates (notifications number count and direct messages)","creator":"U033GCPL5","last_set":1427369872}},{"id":"C045XMBN9","name":"slack-project-2","is_channel":true,"created":1427370044,"creator":"U033GCPL5","is_archived":false,"is_general":false,"is_member":false},{"id":"C045XNE99","name":"slack-project-3","is_channel":true,"created":1427370289,"creator":"U033GCPL5","is_archived":false,"is_general":false,"is_member":false},{"id":"C045XNHNM","name":"slack-project-4","is_channel":true,"created":1427370319,"creator":"U033GCPL5","is_archived":false,"is_general":false,"is_member":false},{"id":"C0458K266","name":"slack-project-5","is_channel":true,"created":1427370344,"creator":"U033GCPL5","is_archived":false,"is_general":false,"is_member":false},{"id":"C0458K9EG","name":"slack-project-6","is_channel":true,"created":1427370371,"creator":"U033GCPL5","is_archived":false,"is_general":false,"is_member":false},{"id":"C045XPEBV","name":"slack-project-7","is_channel":true,"created":1427370476,"creator":"U033GCPL5","is_archived":false,"is_general":false,"is_member":false},{"id":"C0414R32S","name":"social-vip-overlays","is_channel":true,"created":1426256311,"creator":"U033J331Q","is_archived":false,"is_general":false,"is_member":false},{"id":"C03A55FTZ","name":"test-channel","is_channel":true,"created":1420569755,"creator":"U033GCPL5","is_archived":true,"is_general":false,"is_member":false},{"id":"C044EV265","name":"test-sow","is_channel":true,"created":1427142880,"creator":"U0399J1QD","is_archived":false,"is_general":false,"is_member":false},{"id":"C03T66YQZ","name":"thelabdev","is_channel":true,"created":1425492602,"creator":"U033Z49JK","is_archived":false,"is_general":false,"is_member":true,"last_read":"1426898612.000011","latest":{"type":"message","user":"U033Z49JK","text":"cool","ts":"1426898612.000011"},"unread_count":0,"unread_count_display":0,"members":["U033Z341Z","U033Z49JK","U033Z4QPM","U035917C2"],"topic":{"value":"","creator":"","last_set":0},"purpose":{"value":"A channel for all lab products","creator":"U033Z49JK","last_set":1425492602}},{"id":"C03906TU8","name":"tsm-sponsorships","is_channel":true,"created":1419883553,"creator":"U035NEGDL","is_archived":false,"is_general":false,"is_member":false},{"id":"C03DM5HTX","name":"writeup-list","is_channel":true,"created":1421778760,"creator":"U034YTEQK","is_archived":true,"is_general":false,"is_member":false}],"groups":[{"id":"G03C4T7HR","name":"server-status","is_group":true,"created":1421270399,"creator":"U033GCPL5","is_archived":false,"is_open":true,"last_read":"1428327478.000414","latest":{"type":"message","user":"U033J331Q","text":"Yeah seems so","ts":"1428327478.000414"},"unread_count":0,"unread_count_display":0,"members":["U033GCPL5","U033J331Q","U033Z49JK","U034K5X29","U034YLRKH","U034YTEQK","U034Z189D","U035917C2","U035NEGDL","U0363LD25","U0399J1QD","U039AAUV9","U03ANV93M","U03ANVBRK","U03AP3LNV"],"topic":{"value":"","creator":"","last_set":0},"purpose":{"value":"","creator":"","last_set":0}},{"id":"G03C4TP0R","name":"slack-feedback","is_group":true,"created":1421270476,"creator":"U033GCPL5","is_archived":false,"is_open":true,"last_read":"1421270476.000018","latest":{"type":"message","user":"USLACKBOT","text":"<!group>: The import of this group from the #slack-feedback channel is complete.","ts":"1421270476.000018"},"unread_count":0,"unread_count_display":0,"members":["U033GCPL5","U033GHMQX","U033H5T9X","U033J331Q","U033Z341Z","U033Z49JK","U033Z4QPM","U034K5X29","U034YLRKH","U034YTEQK","U034Z2117","U035917C2","U0363LD25"],"topic":{"value":"","creator":"","last_set":0},"purpose":{"value":"Where we can post about the good &amp;amp; bad aspects of using slack over skype","creator":"U033GCPL5","last_set":1421270476}},{"id":"G041317SR","name":"thanks_jose","is_group":true,"created":1426259203,"creator":"U034LQWPY","is_archived":false,"is_open":true,"last_read":"1426518877.000155","latest":{"user":"U03CSGXU8","type":"message","subtype":"group_leave","text":"<@U03CSGXU8|ericwedge> has left the group","ts":"1426518877.000155"},"unread_count":0,"unread_count_display":0,"members":["U033GCPL5","U033GHMQX","U033H5T9X","U033J331Q","U033Z341Z","U033Z49JK","U033Z4QPM","U034K5X29","U034LQWPY","U034YLRKH","U034YTEQK","U034Z189D","U034Z2117","U0350DX5S","U0350G96N","U0350N66G","U03520E43","U0352BZE1","U035917C2","U035NEGDL","U0363LD25","U0399J1QD","U039AAUV9","U03ANV93M","U03ANVBRK","U03AP3LNV","U03F8GXRF","U03F8K3HT","U03FADGLH","U03FAK08J","U03GH4YR4","U03PVE5PH"],"topic":{"value":"","creator":"","last_set":0},"purpose":{"value":"","creator":"","last_set":0}},{"id":"G041AL4M2","name":"tsm-product-roadmap","is_group":true,"created":1426282583,"creator":"U033GCPL5","is_archived":false,"is_open":true,"last_read":"1426520932.000032","latest":{"user":"U0399J1QD","inviter":"U034YTEQK","type":"message","subtype":"group_join","text":"<@U0399J1QD|sowmiya> has joined the group","ts":"1426520932.000032"},"unread_count":0,"unread_count_display":0,"members":["U033GCPL5","U033GHMQX","U033H5T9X","U033J331Q","U033Z341Z","U033Z49JK","U034K5X29","U034LQWPY","U034YLRKH","U034YTEQK","U034Z189D","U034Z2117","U0350G96N","U0350N66G","U03520E43","U0352BZE1","U035917C2","U0363LD25","U0399J1QD","U039AAUV9","U03ANV93M","U03ANVBRK","U03CSGXU8","U03F8GXRF","U03FADGLH","U03FAK08J","U03GH4YR4","U03PVE5PH"],"topic":{"value":"","creator":"","last_set":0},"purpose":{"value":"Forum to share and discuss our overall product roadmap plans.  Roadmap: https://app.roadmunk.com/publish/462fd2899f92aa03f65a7f20755f7e9489359e92  (digitalproducts)","creator":"U033GCPL5","last_set":1426517680}},{"id":"G03F8RAUZ","name":"tsm-release","is_group":true,"created":1422294788,"creator":"U033J331Q","is_archived":false,"is_open":true,"last_read":"1428355670.000098","latest":{"type":"message","user":"U034Z189D","text":"you need it?","ts":"1428355670.000098"},"unread_count":0,"unread_count_display":0,"members":["U033GCPL5","U033GHMQX","U033J331Q","U033Z341Z","U033Z49JK","U034K5X29","U034LQWPY","U034YLRKH","U034YTEQK","U034Z189D","U034Z2117","U0350DX5S","U035917C2","U035NEGDL","U0363LD25","U0399J1QD","U039AAUV9","U03ANV93M","U03ANVBRK","U03AP3LNV","U03F8GXRF","U03FADGLH"],"topic":{"value":"","creator":"","last_set":0},"purpose":{"value":"All Code Deployments will be announced here.","creator":"U033J331Q","last_set":1422294790}},{"id":"G03C6T9RW","name":"water-cooler","is_group":true,"created":1421270421,"creator":"U033J331Q","is_archived":false,"is_open":true,"last_read":"1428087146.000413","latest":{"type":"message","user":"U035NEGDL","text":"easter!!!","ts":"1428087146.000413"},"unread_count":0,"unread_count_display":0,"members":["U033GCPL5","U033GHMQX","U033H5T9X","U033J331Q","U033Z341Z","U033Z49JK","U034K5X29","U034LQWPY","U034YLRKH","U034YTEQK","U034YU29X","U034Z189D","U034Z2117","U0350DX5S","U0350G96N","U0350N66G","U0352BZE1","U035917C2","U035NEGDL","U0363LD25","U0399J1QD","U039AAUV9","U03ANV93M","U03ANVBRK","U03AP3LNV","U03F8GXRF","U03FADGLH","U03FKE27V","U03PVE5PH"],"topic":{"value":"","creator":"","last_set":0},"purpose":{"value":"A place for non-work banter, links, articles of interest, humor or anything else which you'd like concentrated in some place other than work-related channels.","creator":"U033J331Q","last_set":1421270421}},{"id":"G03FE3E8A","name":"weekly-call-dev-sys","is_group":true,"created":1422311414,"creator":"U033J331Q","is_archived":false,"is_open":true,"last_read":"1428335821.000161","latest":{"type":"message","user":"U034K5X29","text":"<http://thenewsherald.com/articles/2013/03/31/news/doc5155f0e81b855927255529.txt>","attachments":[{"service_name":"The News Herald - Serving Southgate, MI","title":"TRENTON: Thousands flock to Elizabeth Park for annual Marshmallow Drop","title_link":"http://thenewsherald.com/articles/2013/03/31/news/doc5155f0e81b855927255529.txt","text":"TRENTON: Thousands flock to Elizabeth Park for annual Marshmallow Drop - TRENTON — The sun was bright, the air was comfortably crisp and the marshmallows were plentiful.","fallback":"The News Herald - Serving Southgate, MI: TRENTON: Thousands flock to Elizabeth Park for annual Marshmallow Drop","image_url":"http://www.thenewsherald.com/content/articles/2013/03/31/news/doc5155f0e81b855927255529.jpg","from_url":"http://thenewsherald.com/articles/2013/03/31/news/doc5155f0e81b855927255529.txt","image_width":377,"image_height":250,"image_bytes":31060,"id":1}],"ts":"1428335821.000161"},"unread_count":0,"unread_count_display":0,"members":["U033GCPL5","U033GHMQX","U033J331Q","U033Z341Z","U033Z49JK","U034K5X29","U034LQWPY","U034YLRKH","U034YTEQK","U034Z189D","U034Z2117","U0350DX5S","U035917C2","U035NEGDL","U0363LD25","U0399J1QD","U039AAUV9","U03ANV93M","U03ANVBRK","U03AP3LNV","U03CSGXU8","U03F8GXRF","U03FADGLH"],"topic":{"value":"","creator":"","last_set":0},"purpose":{"value":"Reserved for Weekly Call with Dev, Systems &amp; QA Team","creator":"U033J331Q","last_set":1422311417}},{"id":"G03HD7NF8","name":"weekly-team-meeting","is_group":true,"created":1422894377,"creator":"U033GCPL5","is_archived":false,"is_open":true,"last_read":"1427731679.000004","latest":{"type":"message","user":"U033Z49JK","text":"slackUserID:apiToken","ts":"1427731679.000004"},"unread_count":0,"unread_count_display":0,"members":["U033GCPL5","U033GHMQX","U033H5T9X","U033J331Q","U033Z341Z","U033Z49JK","U033Z4QPM","U034K5X29","U034LQWPY","U034YLRKH","U034YTEQK","U034Z189D","U034Z2117","U0350DX5S","U0350G96N","U0350N66G","U03520E43","U0352BZE1","U035917C2","U035NEGDL","U0363LD25","U0399J1QD","U039AAUV9","U03ANV93M","U03ANVBRK","U03AP3LNV","U03CSGXU8","U03F8GXRF","U03FADGLH","U03FAK08J","U03GH4YR4","U03PVE5PH"],"topic":{"value":"Call info: 559-726-1300 / ID: 158114","creator":"U0363LD25","last_set":1422895053},"purpose":{"value":"Meeting to review weekly team updates, tasks and news:  Call info: 559-726-1300 / ID: 158114","creator":"U033GCPL5","last_set":1422895152}}],
+
+
+"ims":[
+{"id":"D033Z49JR",
+"is_im":true,
+"user":"USLACKBOT",
+"created":1417623497,
+"last_read":"1421950826.000015",
+"latest":{"text":"wolstat- [HR: Cleanup Market Dashboard] Has been assigned to you by Harry Ward <http://labtickets.meteor.com/features/X6qCNLkrkdkadpcfR>",
+"username":"produx®",
+"bot_id":"B03EAPT74",
+"type":"message","subtype":"bot_message","ts":"1421950826.000015"},
+"unread_count":0,"unread_count_display":0,"is_open":true},
+{"id":"D033Z49JX","is_im":true,"user":"U033GCPL5","created":1417623497,"last_read":"1426105883.000003","latest":{"type":"message","user":"U033Z49JK","text":"yeah","ts":"1426105883.000003"},"unread_count":0,"unread_count_display":0,"is_open":true},
+{"id":"D033Z49JZ","is_im":true,"user":"U033GHMQX","created":1417623497,"last_read":"0000000000.000000","latest":null,"unread_count":0,"unread_count_display":0,"is_open":false},
+{"id":"D033Z49K3","is_im":true,"user":"U033H5T9X","created":1417623497,"last_read":"0000000000.000000","latest":null,"unread_count":0,"unread_count_display":0,"is_open":false},{"id":"D033Z49K7","is_im":true,"user":"U033J331Q","created":1417623497,"last_read":"1428091513.000004","latest":{"type":"message","user":"U033J331Q","text":"foo","ts":"1428091513.000004"},"unread_count":0,"unread_count_display":0,"is_open":true},{"id":"D033Z49K5","is_im":true,"user":"U033Z341Z","created":1417623497,"is_starred":true,"last_read":"1427826385.000008","latest":{"type":"message","user":"U033Z341Z","text":"tsting","ts":"1427826385.000008"},"unread_count":0,"unread_count_display":0,"is_open":true},{"id":"D033Z4QQP","is_im":true,"user":"U033Z4QPM","created":1417623668,"last_read":"1418953445.000031","latest":{"type":"message","user":"U033Z4QPM","text":"about to push a change to prod","ts":"1418953445.000031"},"unread_count":0,"unread_count_display":0,"is_open":false},{"id":"D034K5X3M","is_im":true,"user":"U034K5X29","created":1417807041,"last_read":"0000000000.000000","latest":null,"unread_count":0,"unread_count_display":0,"is_open":false},{"id":"D034LQWQJ","is_im":true,"user":"U034LQWPY","created":1417808008,"last_read":"1427808012.000021","latest":{"type":"message","user":"U034LQWPY","text":"thanks","ts":"1427808012.000021"},"unread_count":0,"unread_count_display":0,"is_open":true},
+{"id":"D034YLRL1","is_im":true,"user":"U034YLRKH","created":1418054977,"last_read":"1428091088.000104","latest":{"type":"message","user":"U033Z49JK","text":"thanks","ts":"1428091088.000104"},"unread_count":0,"unread_count_display":0,"is_open":true},{"id":"D034YTER1","is_im":true,"user":"U034YTEQK","created":1418056507,"last_read":"0000000000.000000","latest":null,"unread_count":0,"unread_count_display":0,"is_open":false},{"id":"D034YU2AD","is_im":true,"user":"U034YU29X","created":1418056633,"last_read":"0000000000.000000","latest":null,"unread_count":0,"unread_count_display":0,"is_open":false},{"id":"D046095GE","is_im":true,"user":"U034Z2117","created":1427490574,"last_read":"0000000000.000000","latest":null,"unread_count":0,"unread_count_display":0,"is_open":true},{"id":"D0350DX6L","is_im":true,"user":"U0350DX5S","created":1418056594,"last_read":"0000000000.000000","latest":null,"unread_count":0,"unread_count_display":0,"is_open":false},{"id":"D0350G97Y","is_im":true,"user":"U0350G96N","created":1418057155,"last_read":"0000000000.000000","latest":null,"unread_count":0,"unread_count_display":0,"is_open":false},{"id":"D0350N67Q","is_im":true,"user":"U0350N66G","created":1418058510,"last_read":"0000000000.000000","latest":null,"unread_count":0,"unread_count_display":0,"is_open":false},{"id":"D03520E4K","is_im":true,"user":"U03520E43","created":1418078186,"last_read":"0000000000.000000","latest":null,"unread_count":0,"unread_count_display":0,"is_open":false},{"id":"D0352BZE7","is_im":true,"user":"U0352BZE1","created":1418081322,"last_read":"0000000000.000000","latest":null,"unread_count":0,"unread_count_display":0,"is_open":false},{"id":"D038G3AEW","is_im":true,"user":"U035917C2","created":1419437963,"last_read":"1426103078.000005","latest":{"type":"message","user":"U035917C2","text":"hhaha","ts":"1426103078.000005"},"unread_count":0,"unread_count_display":0,"is_open":true},{"id":"D035NEGFQ","is_im":true,"user":"U035NEGDL","created":1418248039,"last_read":"1427486385.000036","latest":{"type":"message","user":"U033Z49JK","text":"so far so good","ts":"1427486385.000036"},"unread_count":0,"unread_count_display":0,"is_open":true},{"id":"D0363LD2R","is_im":true,"user":"U0363LD25","created":1418402871,"last_read":"0000000000.000000","latest":null,"unread_count":0,"unread_count_display":0,"is_open":false},{"id":"D041VRQE8","is_im":true,"user":"U03AP3LNV","created":1426510262,"last_read":"1426540927.000020","latest":{"type":"message","user":"U033Z49JK","text":"nice","ts":"1426540927.000020"},"unread_count":0,"unread_count_display":0,"is_open":true},{"id":"D040V32DN","is_im":true,"user":"U03FADGLH","created":1426192511,"last_read":"1426194298.000037","latest":{"type":"message","user":"U033Z49JK","text":"ducking out, ttyl","ts":"1426194298.000037"},"unread_count":0,"unread_count_display":0,"is_open":true},{"id":"D03FAK0AC","is_im":true,"user":"U03FAK08J","created":1422292058,"last_read":"0000000000.000000","latest":null,"unread_count":0,"unread_count_display":0,"is_open":false}],
+
+
 "convos":[
-	{"id":"C0458GXEA", 'count':2, 'mention':true, 'match':false}, //id:count 
-	{"id":"D034YLRL1", 'count':1, 'mention':false, 'match':false}
+	{"id":"C0458GXEA", 'name':'blaj', 'count':2, 'mention':true, 'match':false}, //id:count 
+	{"id":"D034YLRL1", 'name':'foo', 'count':1, 'mention':false, 'match':false}
 ],
 "messages":[
 	{"type":"message","channel":"C0458GXEA","user":"U033J331Q","text":"again","ts":"1428091509.001186","team":"T033GCPL1"},
