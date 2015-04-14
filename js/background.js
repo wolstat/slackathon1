@@ -6,13 +6,7 @@
 
 //TODO: preload user images
 
-//TODO: gotcha - leaving slack app while on a channel assumes you see all messages in that channel
-
-//TODO: map out and re-script message queue, import, convo update flow
-
 //TODO: display messages in a channel on reply panel
-//TODO: make directIM numbers live on users panel
-//TODO: loop through and make full usermeta data
 //TODO: delete rtm obj after all imports!
 
 //TODO: logic to detect a stale session and restart
@@ -20,6 +14,8 @@
 //TODO: scroll to bottom of chat message div:
 ///http://stackoverflow.com/questions/18614301/keep-overflow-div-scrolled-to-bottom-unless-user-scrolls-up
 
+
+//TODO: handle new IM session
 //TODO: handle new user
 //TODO: handle new channel
 
@@ -70,6 +66,8 @@ var _tsmSlackChromeExt = {
 				}
 				self.active.panel = 'users';
 				self.rtm = response;
+				self.dee.self = self.rtm.self,
+				self.dee.team = self.rtm.team,
 				self.dee.usermeta = {},
 				self.dee.convometa = {},
 				//self.rtm.convos = [],
@@ -321,23 +319,34 @@ var _tsmSlackChromeExt = {
   	logConvos : function ( convo ){
 		this.log('logConvo all convos '+JSON.stringify(this.dee.convometa));
   	},
+  	openNewTab : function ( url ) {
+  		chrome.tabs.create( {url:url} );
+		/*chrome.browserAction.onClicked.addListener( function( activeTab ){
+			chrome.tabs.create({ url: url });
+		});*/
+  	},
   	clickConvo : function ( convo ){ var self = _tsmSlackChromeExt;
+  		//does convo have more unreads than messages in the queue? fetch history from slack?
+  		//check local preference - reply in app or open slack?
 		this.log('clickConvo convo '+convo+ " - "+self.dee.convometa[ convo ].label);
-		//this.log('clickConvo all convos '+JSON.stringify(this.rtm.convos));
-		self.active.convo = convo;
-		self.displayPanel('reply');
+		self.openNewTab( self.teamDomain+"messages/"+self.dee.convometa[ convo ].label );
+		//reply in app below
+		//self.active.convo = convo;
+		//self.displayPanel('reply');
   	},
   	clickUser : function ( user ){ var self = _tsmSlackChromeExt;
-		this.log('clickUser user '+user);
-  		var panel = 'reply', u = self.dee.usermeta[ user ];
-		//this.log('clickUser user '+user+ " - "+self.dee.convometa[ u.channel ].id);
-		//this.log('clickConvo all convos '+JSON.stringify(this.rtm.convos));
-		if ( self.dee.convometa[ u.channel ].unread_count > 0 ) { //otherwise panel = 'profile'
+		this.log('clickUser self.active.profile = '+JSON.stringify(self.dee.usermeta[ user ]));
+  		var panel = 'reply', u = self.dee.usermeta[ user ], C = self.dee.convometa;
+		//this.log('clickUser u.channel '+u.channel+ " - "+C[ u.channel ]);
+		//xthis.log('clickConvo all convos '+JSON.stringify(this.rtm.convos));
+		/*if (  typeof u.channel !== undefined && 
+			typeof C[ u.channel ] !== undefined &&
+			C[ u.channel ].unread_count > 0 ) { //otherwise panel = 'profile'
 			self.active.convo = self.dee.convometa[ u.channel ].id;
-		} else {
+		} else { */
 			panel = 'profile';
 			self.active.profile = user;
-		}
+		//}
 		self.displayPanel( panel );
   	},
   	/***************** HTML FUNCTIONS *****************************************/
@@ -359,7 +368,7 @@ var _tsmSlackChromeExt = {
 			});
 		}
   	},
-  	goLastPanel : function(){ var self = _tsmSlackChromeExt;
+  	goLastPanel : function(){ var self = _tsmSlackChromeExt; //to cancel out of a non-nav screen
   		self.displayPanel(self.active.lastpanel);
   	},
   	viewProfile : function(){ var self = _tsmSlackChromeExt;
@@ -380,26 +389,17 @@ var _tsmSlackChromeExt = {
 			w = self.popWin,
 			U = self.dee.usermeta,
 			C = self.dee.convometa;
+	    	jQ('nav.nav span').removeClass('selected');
 			switch( panel ) {
-				case "prefs":
-						jQ('section#prefs').find('main').attr('class', self.active.prefclass);
-						jQ('section#prefs .detail').find('img.pic').attr('src', self.userdata.profile.image_48);
-						jQ('section#prefs .detail').find('span.team').html(self.rtm.team.name);
-						jQ('section#prefs .detail').find('span.uname').html(self.rtm.self.name);
-						jQ('section#prefs .detail').find('span.highlight_words').html(self.rtm.self.prefs.highlight_words);
-
-						//jQ('section#prefs').find('.user').html('');
-						//jQ('section#prefs').find('.user').append('<img class="pic" src="'++'"><div><p>Team: <span class="team">'++'</span></p><p>You: <span class="uname">'++'</span></p><p>Highlight words: <span class="filterterms">'+self.rtm.self.prefs.highlight_words+'</span></p></div>');
-					break;
 				case "convo":
+					jQ('nav.nav span.'+panel).addClass('selected');
 					jQ('section#convo').find('header h2 .badge').html( self.getMessageCount() );
-
 					var tablehtml = "", co = self.dee.convometa;
 					for ( var c in co ) { if (co[c].unread_count > 0){
-
+						var pref = self.cPrefix[ co[c].id.substring(0,1) ];
 						tablehtml += '<tr id="'+co[c].id+'">';
 						tablehtml += '<td class="col1"><span class="badge">'+co[c].unread_count+'</span></td>';
-						tablehtml += '<td class="col2"><a>'+co[c].label+'</a></td>';
+						tablehtml += '<td class="col2"><a>'+pref+co[c].label+'</a></td>';
 						tablehtml += '<td class="col3"><a>'+co[c].mention+'</a></td>';
 						tablehtml += '<td class="col4"><a>'+co[c].match+'</a></td></tr>';
 					}}
@@ -407,6 +407,7 @@ var _tsmSlackChromeExt = {
 					jQ('section#convo').find('main tbody').html( tablehtml );
 					break;
 				case "users":
+					jQ('nav.nav span.'+panel).addClass('selected');
 					jQ('section#users').find('main').html('');
 					for ( var idx in self.dee.usermeta ){
 						var data = self.dee.usermeta[idx],
@@ -414,7 +415,7 @@ var _tsmSlackChromeExt = {
 						umcount = ( data.channel &&
 							C[ data.channel ] &&
 							C[ data.channel ].unread_count > 0 ) ? C[ data.channel ].unread_count + "" : "";
-							jQ('section#users').find('main').append('<span class="team" id="'+data.id+'"><span class="badge">'+umcount+'</span><img data-id="'+data.id+'" title="'+data.real_name+'" data-id="'+data.id+'" src="'+data.profile.image_32+'" class="'+ data.presence + '"></span>');
+							jQ('section#users').find('main').append('<span  class="'+ data.presence + ' team" id="'+data.id+'"><span class="badge">'+umcount+'</span><img data-id="'+data.id+'" title="'+data.real_name+'" data-id="'+data.id+'" src="'+data.profile.image_32+'""></span>');
 					}
 					jQ('section#reply').find('button.cancel').attr('data-lastpanel', 'users');
 					break;
@@ -432,8 +433,29 @@ var _tsmSlackChromeExt = {
 					break;
 				case "profile":
 					var uObj = self.dee.usermeta[ self.active.profile ];
-					jQ('section#profile').find('h2').html( '<span class="badge">'+self.active.profile+'</span>'+uObj.real_name );
-  					//self.active.profile = '';
+					jQ('section#profile').find('img#profile192').attr('src', uObj.profile.image_192);
+					jQ('section#profile').find('h2').html( uObj.real_name+' <span class="badge '+uObj.presence+'">'+uObj.presence+'</span>' );
+					//jQ('section#profile').find('main .title').html( uObj.profile.title );
+					jQ('section#profile').find('main .slacklink').attr( 'href', self.teamDomain+"messages/@"+uObj.name+"/" ).html( uObj.name );
+					jQ('section#profile').find('main .skypelink').attr( 'href', 'skype:'+uObj.profile.skype+"?userinfo" ).html( uObj.profile.skype );
+					jQ('section#profile').find('main .mailto').attr( 'href', 'mailto:'+uObj.profile.email ).html( uObj.profile.email );
+  					//self.active.profile = '';//clear out value
+					break;
+				case "prefs":
+					jQ('nav.nav span.'+panel).addClass('selected');
+					jQ('section#prefs').find('main').attr('class', self.active.prefclass);
+					if ( self.has.auth ) {
+						jQ('section#prefs').find('.uname').html(self.rtm.self.name);
+						jQ('section#prefs .detail').find('img.pic').attr('src', self.userdata.profile.image_72);
+						jQ('section#prefs .detail').find('.team')
+							.attr( 'href', self.teamDomain )
+							.html(self.rtm.team.name);
+						jQ('section#prefs .detail').find('.highlight_words')
+							.attr( 'href', self.teamDomain+"account/notifications#highlight_words_div" )
+							.html(self.rtm.self.prefs.highlight_words);
+					}
+					//jQ('section#prefs').find('.user').html('');
+					//jQ('section#prefs').find('.user').append('<img class="pic" src="'++'"><div><p>Team: <span class="team">'++'</span></p><p>You: <span class="uname">'++'</span></p><p>Highlight words: <span class="filterterms">'+self.rtm.self.prefs.highlight_words+'</span></p></div>');
 					break;
 			}
 		}
@@ -554,6 +576,14 @@ var _tsmSlackChromeExt = {
 			message:'Unread filter match',
 			color:'#F00',
 			suffix:'#'
+		},
+		im:{
+			prefclass : 'active',
+			hasAuth : true,
+			panel:'convo',
+			message:'Unread mention',
+			color:'#F00',
+			suffix:'@'
 		},
 		mention:{
 			prefclass : 'active',

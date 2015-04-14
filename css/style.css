@@ -122,53 +122,75 @@ body {
 	font-size: 100%;
 	width: 420px;
 }
-
+section{
+	min-height:300px;
+}
+article{
+	margin-bottom:15px;
+}
+p{
+	margin-bottom:5px;
+	line-height: 19px;
+	font-size: 14px;
+}
+button {
+	background-color: #462973;
+	border-radius: 5px;
+	border: none;
+	color: #ffffff;
+	height: 35px;
+	width: 85px;
+	float: left;
+	margin:15px 15px 0 0;
+}
 nav.nav{
   position:absolute;
-  top:0;
-  right:0;
-  margin-left:8px;
+  top:20px;
+  right:9px;
 }
 nav.nav span{
-	background-image:url('../img/bg.png');
-	background-repeat:no-repeat;
-	background-position:82px 0;
 	color:rgb(126, 106, 162);
-	display:block;
 	height:18px;
-	width:70px;
+	width:40px;
 	font-size: 13px;
 	line-height:17px;
 	padding:0 6px;
 	cursor:pointer;
 	text-align:right;
-	position:relative;
 	overflow:hidden;
 }
 nav.nav span.selected{
 	color:#FFF;
+	cursor:auto;
 }
 nav.nav i{
-	font-size:11px;
+	font-size:13px;
 	line-height:17px;
 }
 nav.nav em{
+	display:none;
 	position:absolute;
-	left:5px;
-	top:24px;
+	padding:0 0 0 12px;
+	right:88px;
+	top:0px;
+	_width:40px;
 	font-style: normal;
+	text-align:right;
+	background-color: #462973;
+}
+nav.nav span:hover em{
+	display:block;
+}
+nav.nav span.selected:hover em{
+	display:none;
 }
 
 nav.nav span:hover{
-	background-color: #462973;
 	color:#FFF;
 }
-
-
-section{
-	min-height:300px;
+nav.nav span.selected:hover{
+	background-color:none;
 }
-
 section main{
   padding: 15px;
 }
@@ -177,13 +199,9 @@ section main::after {
   clear: both;
   display: block;
 }
-
-
 #users, #convo{
 	display:none;
 }
-
-
 section header{
 	height: 54px;
 	background-color: #462973;
@@ -205,15 +223,35 @@ td span.badge{
 	font-size:12px;
 	padding:0 5px;
 }
-button {
-	background-color: #462973;
-	border-radius: 5px;
-	border: none;
-	color: #ffffff;
-	height: 35px;
-	width: 85px;
-        float: left;
+h2 span.badge.active{
+	background:#3A3;
+	margin-left: 7px;
 }
+h2 span.badge.away{
+	background:#A33;
+	margin-left: 7px;
+}
+section dt{
+	font-weight:bold;
+}
+section dl a{
+	text-decoration: none;
+	color:#555;
+}
+section dd{
+	color:#555;
+	font-size:13px;
+}
+section dd{
+	text-indent: 15px;
+	margin:4px 0 10px;
+}
+section dl a:hover{
+	color:#000;
+	text-decoration: underline;
+}
+
+
 section#convo header.tabs ul {
 	list-style: none;
 	width: 85%;
@@ -234,48 +272,6 @@ section#convo header.tabs li {
 	text-align: center;
 	margin-left: 15px;
 	white-space: nowrap;
-}
-section#convo header.tabs li.active {
-	color: #ffffff;
-}
-section#convo header.tabs li.active:after {
-	content:'';
-	position: absolute;
-	bottom: 0;
-	left: 0;
-	right: 0;
-	margin: 0 auto;
-	width: 0;
-	height: 0;
-	border-bottom: solid 10px #ffffff;
-	border-left: solid 10px transparent;
-	border-right: solid 10px transparent;
-}
-section#convo header.tabs .arrows .left.arrow {
-	background-image: url("img/left.png");
-}
-section#convo header.tabs .arrows .left.arrow:hover {
-	background-image: url("img/left_white.png");
-}
-section#convo header.tabs .arrows .right.arrow {
-	background-image: url("img/right.png");
-}
-section#convo header.tabs .arrows .right.arrow:hover {
-	background-image: url("img/right_white.png");
-}
-section#convo header.tabs .arrows {
-	width: 13%;
-	float: right;
-	cursor: pointer;
-	margin-right: 5px;
-}
-section#convo header.tabs .arrows .arrow {
-	width: 50%;
-	margin-left: 0px;
-	background-repeat: no-repeat;
-	background-position: center;
-	height: 54px;
-	float: left;
 }
 section main .user {
 	height: 50px;
@@ -303,8 +299,8 @@ section#convo main .user .close:hover {
 	background-image: url("img/close_dark.png");
 }
 section main .pic {
-	width: 50px;
-	height: 50px;
+	width: 72px;
+	height: 72px;
 	float: left;
 	margin-right: 15px;
 	border-radius: 5px;
@@ -336,22 +332,20 @@ section#users main .team{
 	position: relative;
 	display: inline-block;
 	margin: 0 0 3px 6px;
+	height:32px;
+	width:32px;
+	background:#777;
 	cursor:pointer;
-}
-section#users main img{
 	border:solid 3px #3A3;
-	_box-shadow: 1px 1px 2px #888888;
 }
-section#users main img.away{
-	opacity:0.5;
+section#users main .team.away{
 	border:solid 3px #A33;
-	box-shadow: none;
 }
 section#users main .team .badge{
 	opacity:1;
 	position: absolute;
-	bottom: 7px;
-	right: 1px;
+	bottom: -2px;
+	right: -2px;
 	font-size: 12px;
 	padding: 0px 4px;
 	line-height: 17px;
@@ -359,8 +353,8 @@ section#users main .team .badge{
 section#convo tr:nth-child(odd) {background: #EEE}
 section#convo table{
 	width:100%;
-	border-top:solid 1px #aaa;
-	border-bottom:solid 1px #aaa;
+	_border-top:solid 1px #aaa;
+	_border-bottom:solid 1px #aaa;
 }
 section#convo th,
 section#convo td{
@@ -405,10 +399,8 @@ section#prefs form{
 	clear: both;
 }
 section#prefs form input{
-	width:100%;
+	width:99%;
 }
-
-
 
 
 section#reply .message textarea{
@@ -418,4 +410,13 @@ section#reply .history{
 	overflow-y:auto;
 	font-size: 12px;
 	max-height:250px;
+}
+
+section#profile #profile192{
+	height:150px;
+	width:150px;
+	background:#EEE;
+	float:left;
+	margin:0 15px 10px 0;
+	border-radius: 5px;
 }

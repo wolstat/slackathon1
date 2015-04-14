@@ -69,7 +69,7 @@
 	    });
 
 
-	    $(document).on('click', 'nav.nav span, nav.nav span em, nav.nav span i', function(e){
+	    $(document).on('click', 'nav.nav span', function(e){
 	    	var pcheck, panel, obj;
 	    	if ( pcheck = $(e.target).attr('data-panel') ) {
 	    		panel = pcheck;
@@ -78,7 +78,6 @@
 	    		obj = $(e.target).closest('span');
 	    		panel = obj.attr('data-panel');
 	    	}
-	    	//obj.toggleClass('selected');
 	    	//console.log('click : '+e.target.className);
 	      	bg.displayPanel( panel );
 	    });
@@ -121,24 +120,23 @@
 		};
 
 
-
+/*
 	$("nav.nav span").click(function(){
 		$(this).blur();
 	});
-	
 	//When mouse rolls over
 	$("nav.nav span").mouseover(function(){
-		console.log('bzz');
+		if ( $(this).hasClass('selected') ) return;
 		$(this).stop().animate({'background-position-x':"0px"},{queue:false, duration:300, easing: 'easeOutQuart'});
 		$(this).find('em').stop().animate({'top':'0px'},{queue:false, duration:200, easing: 'easeOutQuart'});
 	});
-	
 	//When mouse is removed
 	$("nav.nav span").mouseout(function(){
+		if ( $(this).hasClass('selected') ) return;
 		$(this).stop().animate({'background-position-x':'82px'},{queue:false, duration:200, easing: 'easeOutQuart'});
 		$(this).find('em').stop().animate({'top':'24px'},{queue:false, duration:150, easing: 'easeOutQuart'});
 	});
-
+*/
 
 		//this will be replaced by bg window post method
 		$('body').on('click', '.test', function(e){
