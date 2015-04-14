@@ -2,7 +2,13 @@
 //  https://developer.chrome.com/apps/app_identity
 //launchWebAuthFlow
 
+//TODO: highlight words and @mentions
+
+//TODO: preload user images
+
 //TODO: gotcha - leaving slack app while on a channel assumes you see all messages in that channel
+
+//TODO: map out and re-script message queue, import, convo update flow
 
 //TODO: display messages in a channel on reply panel
 //TODO: make directIM numbers live on users panel
@@ -10,6 +16,9 @@
 //TODO: delete rtm obj after all imports!
 
 //TODO: logic to detect a stale session and restart
+
+//TODO: scroll to bottom of chat message div:
+///http://stackoverflow.com/questions/18614301/keep-overflow-div-scrolled-to-bottom-unless-user-scrolls-up
 
 //TODO: handle new user
 //TODO: handle new channel
@@ -54,22 +63,23 @@ var _tsmSlackChromeExt = {
 				self.updateStatus('unauthorized'); 
 			}, //error handling, bad token, service unavailable, etc.
 			success: function( response ){
-				console.log('startWss response: '+JSON.stringify( response ));
+				//console.log('startWss response: '+JSON.stringify( response ));
 				if ( response.ok === false ) {
 					self.updateStatus('unauthorized');
 					return;
 				}
 				self.active.panel = 'users';
 				self.rtm = response;
-				self.rtm.usermeta = {},
-				self.rtm.convometa = {},
-				self.rtm.convos = [],
-				self.rtm.messages = [],
+				self.dee.usermeta = {},
+				self.dee.convometa = {},
+				//self.rtm.convos = [],
+				self.dee.messages = [],
 				self.rtm.state = {},///match/mention
 				//add users info to self profile
 				self.userdata = self.getObjectItem( self.rtm.users, self.rtm.self.id );
 				//C033GCPLPconsole.log("self.userdata"+JSON.stringify(self.userdata));
 				self.importConvos();
+				self.importUsers();
 				self.wss = new window.WebSocket( response.url ); //wss
 				self.wss.onopen = self.wssOnOpen;
 				self.wss.onclose = self.wssOnClose;
@@ -154,7 +164,7 @@ var _tsmSlackChromeExt = {
 		this.log('updateBadge '+state);
 
 		//TODO: only count messages when its a message state
-		var ct = self.getMessageCount();;
+		var ct = self.getMessageCount();
 		//chrome.browserAction.setBadgeTitle({ title: this.statuses[state].message });
 		chrome.browserAction.setBadgeText({ text: ct+this.statuses[state].suffix });
 		chrome.browserAction.setBadgeBackgroundColor({ color:this.statuses[state].color }); //[155, 139, 187, 255]
@@ -165,55 +175,83 @@ var _tsmSlackChromeExt = {
   		var cObjects = ['channels', 'ims', 'groups'];
   		for ( co in cObjects ) {
   			var list = self.rtm[ cObjects[co] ];
-			for ( l in list) { if (list[l].unread_count > 0 && list[l].latest.type === 'message' ) {
-				self.log('importConvos match '+JSON.stringify(list[l]));
+			for ( l in list) {
+				if ( cObjects[co] === 'ims' ) {//start usermeta
+					self.dee.usermeta[list[l].user] = { "id":list[l].user, "channel":list[l].id}
+				};
 				var metaname = (list[l].is_im) ? list[l].user : list[l].name;// self.rtm.users.id[ims.user].real_name
-				if ( cObjects[co] === 'ims' ) {self.rtm.usermeta[list[l].user] = { "id":list[l].user, "channel":list[l].user};
-				self.rtm.convometa[list[l].id] = { "id":list[l].id, "label":metaname};
-				self.createConvo( list[l] );
-				var msg = list[l].latest;
-				msg['channel'] = list[l].id;
-				self.active.panel = 'convo';
-				self.addToQueue(msg);	
-			}}
+				self.dee.convometa[list[l].id] = { 
+					"id":list[l].id,
+					"parent_type":cObjects[co],
+					"label":metaname,
+					"unread_count":(list[l].unread_count - 0),
+					"mention":0,
+					"match":0};
+				if (list[l].unread_count > 0 && list[l].latest.type === 'message' ) {
+					//self.log('importConvos match '+JSON.stringify(list[l]));
+					//self.createConvo( list[l] );
+					var msg = list[l].latest;
+					msg['channel'] = list[l].id;
+					self.active.panel = 'convo';
+					self.addToQueue(msg, false);	
+				}
+			}
 		}
   	},
+  	importUsers : function(){ var self = this;
+  		var u;
+  		var uObj = self.rtm.users;
+  		for ( u in uObj ) { // has .channel and .id already
+  			var uid = uObj[u].id;
+  			//self.log("importUsers "+uObj[u].real_name+" typeof " )
+  			if ( typeof self.dee.usermeta[uid] === 'undefined' ) {
+  				self.dee.usermeta[uid] = {};
+  				self.dee.usermeta[uid].id = uid;
+  				self.dee.usermeta[uid].channel = "";
+  			} else if ( self.dee.convometa[ self.dee.usermeta[uid].channel ] !== 'undefined' ) {
+  				self.dee.convometa[ self.dee.usermeta[uid].channel ].label = uObj[u].real_name;
+  			}
+  			self.dee.usermeta[uid].real_name = uObj[u].real_name || uObj[u].name;
+  			self.dee.usermeta[uid].name = uObj[u].name;
+  			self.dee.usermeta[uid].presence = uObj[u].presence;
+  			self.dee.usermeta[uid].profile = uObj[u].profile;
+		}
+  	},/*
   	createConvo : function( arg ){ var self = this;
   		var lId = ( arg.type && arg.type === 'message' ) ? arg.channel : arg.id;
   		var lCt = ( arg.type && arg.type === 'message' ) ? 1 : (arg.unread_count - 1);
   		var newConvo = {
   			id : lId,
   			count : lCt, //will import latest and increment by one then
-  			label : self.cPrefix[ lId.substring(0,1) ]+self.rtm.convometa[ lId ].label,
+  			label : self.cPrefix[ lId.substring(0,1) ]+self.dee.convometa[ lId ].label,
   			mention:0,
   			match:0
   		};
   		self.rtm.convos.push( newConvo );
-  	},
+  	}, */
   	// push message to queue
-	addToQueue : function( message ){ var self = this;
-		self.rtm.messages.push(message);
-		self.updateConvo(message);
-		console.log("messages"+JSON.stringify(self.rtm.messages));
+	addToQueue : function( message, inc ){ var self = this;
+		var inc = inc || true;
+		self.dee.messages.push(message);
+		self.updateConvo(message, inc);
+		console.log("messages"+JSON.stringify(self.dee.messages));
   	},
-	updateConvo: function( message ){ var self = this; //update convo.channel obj
-		var cv = self.rtm.convos, type = 'message', m = {};
+	updateConvo: function( message, inc ){ var self = this; //update convo.channel obj
+		var type = 'message';
 		//TODO: filter mentions and matches here
-		var activeConvo = self.getObjectItem( cv, message.channel );
-		if ( activeConvo ) {
-			activeConvo.count++;
-		} else {
-			self.createConvo( message );
-		}
-		self.updateConvoCt();
+		var activeConvo = self.dee.convometa[ message.channel ];
+		if ( inc ) activeConvo.unread_count++;
+		activeConvo.mention = 0;
+		activeConvo.match = 0;
+		self.panelRefresh('convo');
 		self.updateStatus(type);
-		self.log("updateConvo convos: "+JSON.stringify(self.rtm.convos));
+		//self.log("updateConvo convos: "+JSON.stringify(self.dee.convometa));
 	},
   	// pull all messages from a read channel out of queue
 	unmarkChannel : function( obj ){ var self = this;
 		//self.rtm.state.has_mention = false;
 		//self.rtm.state.has_match = false;
-		var mQ = self.rtm.messages, newQ = [],
+		var mQ = self.dee.messages, newQ = [],
 		i, channel = obj.channel;
 		for (i = 0;i<mQ.length;i++) { 
 			//self.log("unmark loop i:"+i+" :: "+JSON.stringify(mQ));
@@ -226,15 +264,16 @@ var _tsmSlackChromeExt = {
 		//clear self.convos
 		//this.urgencyCheck();
 		self.unmarkConvo( channel );
-		self.rtm.messages = newQ;
-		self.updateConvoCt();
+		self.dee.messages = newQ;
+		self.panelRefresh('convo');
   	},
   	unmarkConvo : function( id ){ var self = this;
+  		self.dee.convometa[ id ].unread_count = 0;/*
   		var newC = [];
   		for (i = 0; i< self.rtm.convos.length; i++) { if ( self.rtm.convos[i].id !== id ) {
   			newC.push( self.rtm.convos[i] );
   		}}
-		self.rtm.convos = newC;
+		self.rtm.convos = newC; */
   	},
   	//check message for any filter matches or <@uid> mentions
   	urgencyCheck : function( message ){ var self = this;
@@ -247,10 +286,13 @@ var _tsmSlackChromeExt = {
   	},
   	getMessageCount : function () { var self = this;
   		var ct = 0;
-  		if ( self.rtm && self.rtm.convos ) { for (i = 0; i< self.rtm.convos.length; i++) {
-  			ct = ( ct + self.rtm.convos[i].count );
-  		}}
-		//var mCt = ( typeof self.rtm === 'undefined' || typeof self.rtm.messages === 'undefined' ) ? 0 : self.rtm.messages.length;
+  		if ( self.dee && self.dee.convometa ) { 
+  			for (i in self.dee.convometa) {
+  				if ( self.dee.convometa[i].unread_count && self.dee.convometa[i].unread_count > 0 ) {
+  			//self.log("getMessageCount "+JSON.stringify(self.dee.convometa[i]));
+  			ct = ( ct + ( self.dee.convometa[i].unread_count - 0 ) );
+  		}}}
+		//var mCt = ( typeof self.rtm === 'undefined' || typeof self.dee.messages === 'undefined' ) ? 0 : self.dee.messages.length;
 		return (ct<1) ? "" : ( ct + "" );
   	},
   	saveAuth : function( payload ){
@@ -277,17 +319,31 @@ var _tsmSlackChromeExt = {
 		});
   	},
   	logConvos : function ( convo ){
-		this.log('logConvo all convos '+JSON.stringify(this.rtm.convos));
+		this.log('logConvo all convos '+JSON.stringify(this.dee.convometa));
   	},
   	clickConvo : function ( convo ){ var self = _tsmSlackChromeExt;
-		this.log('clickConvo convo '+convo+ " - "+self.rtm.convometa[ convo ].label);
+		this.log('clickConvo convo '+convo+ " - "+self.dee.convometa[ convo ].label);
 		//this.log('clickConvo all convos '+JSON.stringify(this.rtm.convos));
 		self.active.convo = convo;
 		self.displayPanel('reply');
   	},
+  	clickUser : function ( user ){ var self = _tsmSlackChromeExt;
+		this.log('clickUser user '+user);
+  		var panel = 'reply', u = self.dee.usermeta[ user ];
+		//this.log('clickUser user '+user+ " - "+self.dee.convometa[ u.channel ].id);
+		//this.log('clickConvo all convos '+JSON.stringify(this.rtm.convos));
+		if ( self.dee.convometa[ u.channel ].unread_count > 0 ) { //otherwise panel = 'profile'
+			self.active.convo = self.dee.convometa[ u.channel ].id;
+		} else {
+			panel = 'profile';
+			self.active.profile = user;
+		}
+		self.displayPanel( panel );
+  	},
   	/***************** HTML FUNCTIONS *****************************************/
   	// html switch panel
 	displayPanel : function( clicked ){ var self = _tsmSlackChromeExt;
+		self.active.lastpanel = self.active.panel;
 		self.active.panel = clicked;
 		//this.log("displayPanel");
 		if ( this.popEnv() ) {
@@ -303,6 +359,12 @@ var _tsmSlackChromeExt = {
 			});
 		}
   	},
+  	goLastPanel : function(){ var self = _tsmSlackChromeExt;
+  		self.displayPanel(self.active.lastpanel);
+  	},
+  	viewProfile : function(){ var self = _tsmSlackChromeExt;
+  		self.displayPanel('profile');
+  	},
   	makeTime : function( ts ){
   		var d = new Date(parseFloat(ts) * 1000);
   		return d.toLocaleDateString();
@@ -315,7 +377,9 @@ var _tsmSlackChromeExt = {
   		if ( this.popEnv() ) {
 			var self = _tsmSlackChromeExt,
 			jQ = self.jQ,
-			w = self.popWin;
+			w = self.popWin,
+			U = self.dee.usermeta,
+			C = self.dee.convometa;
 			switch( panel ) {
 				case "prefs":
 						jQ('section#prefs').find('main').attr('class', self.active.prefclass);
@@ -328,40 +392,50 @@ var _tsmSlackChromeExt = {
 						//jQ('section#prefs').find('.user').append('<img class="pic" src="'++'"><div><p>Team: <span class="team">'++'</span></p><p>You: <span class="uname">'++'</span></p><p>Highlight words: <span class="filterterms">'+self.rtm.self.prefs.highlight_words+'</span></p></div>');
 					break;
 				case "convo":
-					self.updateConvoCt();
-					var tablehtml = "", co = self.rtm.convos;
-					for ( var c in co ) {
+					jQ('section#convo').find('header h2 .badge').html( self.getMessageCount() );
+
+					var tablehtml = "", co = self.dee.convometa;
+					for ( var c in co ) { if (co[c].unread_count > 0){
+
 						tablehtml += '<tr id="'+co[c].id+'">';
-						tablehtml += '<td class="col1"><span class="badge">'+co[c].count+'</span></td>';
+						tablehtml += '<td class="col1"><span class="badge">'+co[c].unread_count+'</span></td>';
 						tablehtml += '<td class="col2"><a>'+co[c].label+'</a></td>';
 						tablehtml += '<td class="col3"><a>'+co[c].mention+'</a></td>';
 						tablehtml += '<td class="col4"><a>'+co[c].match+'</a></td></tr>';
-					}
+					}}
+					jQ('section#reply').find('button.cancel').attr('data-lastpanel', 'convo');
 					jQ('section#convo').find('main tbody').html( tablehtml );
 					break;
 				case "users":
 					jQ('section#users').find('main').html('');
-					for ( var idx in self.rtm.users ){
-						var data = self.rtm.users[idx];
-						//if (data.unread_count > 0){
-							jQ('section#users').find('main').append('<span class="team" id="'+data.id+'"><span class="badge">2</span><img title="'+data.name+'" data-id="'+data.id+'" src="'+data.profile.image_32+'" class="'+ data.presence + '"></span>');
-						//}
+					for ( var idx in self.dee.usermeta ){
+						var data = self.dee.usermeta[idx],
+						//umcount = "";
+						umcount = ( data.channel &&
+							C[ data.channel ] &&
+							C[ data.channel ].unread_count > 0 ) ? C[ data.channel ].unread_count + "" : "";
+							jQ('section#users').find('main').append('<span class="team" id="'+data.id+'"><span class="badge">'+umcount+'</span><img data-id="'+data.id+'" title="'+data.real_name+'" data-id="'+data.id+'" src="'+data.profile.image_32+'" class="'+ data.presence + '"></span>');
 					}
-
+					jQ('section#reply').find('button.cancel').attr('data-lastpanel', 'users');
 					break;
 				case "reply":
-					var cObj = self.getObjectItem(self.rtm.convos, self.active.convo );
-					jQ('section#reply').find('h2').html( '<span class="badge">'+cObj.count+'</span>'+cObj.label );
+					var ms = self.dee.messages, msghtml = "";
+					for ( var m in ms ) { if (ms[m].channel === self.active.convo){
+						msghtml += '<div id="msg_1425924683_000026"><i class="timestamp ">2:11 PM</i><a class="member" data-member-id="'+ms[m].user+'"> '+U[ms[m].user].real_name+'</a>:';
+						msghtml += '<span class="message_content">'+ms[m].text+'</span></div>';
+					}}
+					jQ('section#reply').find('.history').html( msghtml );
+					var cObj = self.dee.convometa[ self.active.convo ];
+					jQ('section#reply').find('#viewprofile').toggle( ( cObj.parent_type === 'ims') );
+					jQ('section#reply').find('#viewprofile').toggle( ( cObj.parent_type === 'ims') );
+					jQ('section#reply').find('h2').html( '<span class="badge">'+cObj.unread_count+'</span>'+cObj.label );
+					break;
+				case "profile":
+					var uObj = self.dee.usermeta[ self.active.profile ];
+					jQ('section#profile').find('h2').html( '<span class="badge">'+self.active.profile+'</span>'+uObj.real_name );
+  					//self.active.profile = '';
 					break;
 			}
-		}
-  	},
-  	//displayNewConvos
-  	updateConvoCt : function (){
-  		if ( this.popEnv() ) {
-			var self = _tsmSlackChromeExt,
-			jQ = self.jQ;
-			jQ('section#convo').find('header h2 .badge').html( _tsmSlackChromeExt.getMessageCount() );
 		}
   	},
   	removeConvoRow : function (id){
@@ -386,12 +460,15 @@ var _tsmSlackChromeExt = {
   		message : false
   	},
   	active : { //display states
+  		lastpanel : '', //for peripheral panel cancel buttons, go back to the right place
+  		profile : '', //user id, blank is just default
   		convo : false, //convo id, for reply page
   		chrome : true, //is chrome active?
   		state : 'preauth', //this is the h1 class on the prefs panel
   		panel : 'prefs', //unread, team, settings, (reply, groups, channels) //default panel in popup
   		prefclass : 'preauth' //h1 is on the prefs panel
   	},
+  	dee : {}, //main obj for data storage
   	hasAuth : false, //is current session authorized
 	apiUrl : "https://slack.com/api/",
   	prefs : { //save whole object directly to localStorage.prefs
@@ -486,6 +563,12 @@ var _tsmSlackChromeExt = {
 			color:'#F00',
 			suffix:'@'
 		}
+	},
+	logConvometa : function(){ var self = _tsmSlackChromeExt;
+		self.log("logConvometa"+JSON.stringify(self.dee.convometa));
+	},
+	logUsermeta : function(){ var self = _tsmSlackChromeExt;
+		self.log("logUsermeta"+JSON.stringify(self.dee.usermeta));
 	},
 	log : function ( msg ){
 		//console.log("log activePanel:"+this.activePanel+"\n\n"+msg );

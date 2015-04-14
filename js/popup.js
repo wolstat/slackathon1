@@ -23,6 +23,21 @@
 			bg.unsetPopEnv();
 		});
 
+		$('body').on('click', '#logConvometa', function(e){
+			bg.logConvometa();
+		});
+
+
+
+		$('body').on('click', '#popMsgCount', function(e){
+			alert(JSON.stringify(bg.dee.convometa));
+		});
+
+		$('body').on('click', '#logUsermeta', function(e){
+			bg.logUsermeta();
+		});
+
+
 		$('body').on('click', '#clearPrefs', function(e){
 			bg.clearPrefs();
 		});
@@ -48,17 +63,37 @@
 	        //return false;
 	    });
 
-
-	    $(document).on('click', 'nav.nav span, .nav button', function(e){
-	      bg.displayPanel(e.target.className);
+		$('body').on('click', '#viewprofile button', function(e){
+	        bg.viewProfile();
+	        //return false;
 	    });
 
-		$(document).on('click', '#header .tabs li', function(e) {
-			bg.displayMessage(e.target.className);
-		});
+
+	    $(document).on('click', 'nav.nav span, nav.nav span em, nav.nav span i', function(e){
+	    	var pcheck, panel, obj;
+	    	if ( pcheck = $(e.target).attr('data-panel') ) {
+	    		panel = pcheck;
+	    		obj = $(e.target)
+	    	} else {
+	    		obj = $(e.target).closest('span');
+	    		panel = obj.attr('data-panel');
+	    	}
+	    	//obj.toggleClass('selected');
+	    	//console.log('click : '+e.target.className);
+	      	bg.displayPanel( panel );
+	    });
+
+	    $(document).on('click', '#reply .cancel', function(e){
+	    	//clickCancelPanel( panel ); reset active.lastPanel
+	      bg.goLastPanel();
+	    });
 
 		$(document).on('click', '#convo tr', function(e) {
 			if ( thisconvo = $(this).attr('id') ) { bg.clickConvo( thisconvo );}
+		});
+
+		$(document).on('click', '#users span.team img', function(e) {
+			bg.clickUser( $(e.target).closest('span.team').attr('id') );
 		});
 
 		$(document).on('click', '#header .tabs .left.arrow', function(e){
@@ -84,6 +119,26 @@
 		    });
 		    return o;
 		};
+
+
+
+	$("nav.nav span").click(function(){
+		$(this).blur();
+	});
+	
+	//When mouse rolls over
+	$("nav.nav span").mouseover(function(){
+		console.log('bzz');
+		$(this).stop().animate({'background-position-x':"0px"},{queue:false, duration:300, easing: 'easeOutQuart'});
+		$(this).find('em').stop().animate({'top':'0px'},{queue:false, duration:200, easing: 'easeOutQuart'});
+	});
+	
+	//When mouse is removed
+	$("nav.nav span").mouseout(function(){
+		$(this).stop().animate({'background-position-x':'82px'},{queue:false, duration:200, easing: 'easeOutQuart'});
+		$(this).find('em').stop().animate({'top':'24px'},{queue:false, duration:150, easing: 'easeOutQuart'});
+	});
+
 
 		//this will be replaced by bg window post method
 		$('body').on('click', '.test', function(e){
