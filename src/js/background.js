@@ -1,11 +1,19 @@
 //TODO: initial auth workflow
 //  https://developer.chrome.com/apps/app_identity
 //launchWebAuthFlow
+//http://smus.com/oauth2-chrome-extensions/
+//slack scopes: identify, read, post, client
+
+//QA
+//version number on settings page
+//secret panel link on settings page to var dump buttons
+//var dump function
 
 //TODO: highlight words and @mentions
 
-//TODO: preload user images
+//TODO: preload team user images
 
+//TODO: re-authorize UI doesn't clear 'Connecting,,,' message on settings panel
 //TODO: display messages in a channel on reply panel
 //TODO: delete rtm obj after all imports!
 
@@ -110,6 +118,7 @@ var _tsmSlackChromeExt = {
 	},
 	wssOnOpen : function () { var self = _tsmSlackChromeExt;
 		self.updateStatus('connected');
+		self.displayPanel('prefs');
 	    self.log("wssOnOpen");
 	},
 	wssOnClose : function () { var self = _tsmSlackChromeExt;
@@ -201,7 +210,7 @@ var _tsmSlackChromeExt = {
   		var uObj = self.rtm.users;
   		for ( u in uObj ) { // has .channel and .id already
   			var uid = uObj[u].id;
-  			//self.log("importUsers "+uObj[u].real_name+" typeof " )
+  			self.log( uObj[u].profile.email )
   			if ( typeof self.dee.usermeta[uid] === 'undefined' ) {
   				self.dee.usermeta[uid] = {};
   				self.dee.usermeta[uid].id = uid;
@@ -443,7 +452,6 @@ var _tsmSlackChromeExt = {
 					break;
 				case "prefs":
 					jQ('nav.nav span.'+panel).addClass('selected');
-					jQ('section#prefs').find('main').attr('class', self.active.prefclass);
 					if ( self.has.auth ) {
 						jQ('section#prefs').find('.uname').html(self.rtm.self.name);
 						jQ('section#prefs .detail').find('img.pic').attr('src', self.userdata.profile.image_72);
@@ -637,6 +645,7 @@ var _tsmSlackChromeExt = {
 };
 	//userId : 'U033Z49JK', //wolstat
 	//authToken: "xoxp-3118431681-3168705663-4227973029-c967a2" //jzee
+	// xoxp-3118431681-3168705663-4438476316-09f3b3 jzee 2
 	//authToken : "xoxp-3118431681-3135145631-4229637403-9444ae", //wolstat
 
 var convometa_map = {

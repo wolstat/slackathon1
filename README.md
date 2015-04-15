@@ -3,12 +3,19 @@
 GitHub:
 https://github.com/wolstat/slackathon1
 
-Local Chrome Ext dev:
+Set up Local Chrome Extension:
 https://developer.chrome.com/extensions/getstarted#unpacked
 
-File relocation:
-popup.html -> index.html
-popup.html.css -> style.css
-popup.js -> js/popup.js
-jquery-2.1.3.min.js -> js/jquery-2.1.3.min.js
-images -> img/
+Or install as a tester:
+https://chrome.google.com/webstore/detail/tsm-slack-helper/dcjhmokcdfafldjdiddhckfnkfkbklkm?hl=en-US&gl=US
+
+Generate an auth token for Slack:
+https://api.slack.com/web#authentication
+
+
+Known issues:
+Authenticating works most reliably immediately after reloading the extension. If your attempt to authorize continues to fail, try reloading the extension via the chrome://extensions panel
+
+Message highlight filtering and @notifications not working yet
+
+Unread messages on reconnection may be recording one more than the actual number.

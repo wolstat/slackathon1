@@ -302,7 +302,7 @@ section main .pic {
 	width: 72px;
 	height: 72px;
 	float: left;
-	margin-right: 15px;
+	margin:0 15px 10px 0;
 	border-radius: 5px;
 }
 section#convo main .message {

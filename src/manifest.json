@@ -1,29 +1,18 @@
 {
-  "name": "TSM DP Slack viewer",
+  "name": "TSM Slack helper",
+  "short_name": "SlackHelp",
   "description": "This extension will alert you to new messages in Slack",
-  "version": "0.1",
+  "version": "0.12",
   "manifest_version": 2,
+  "homepage_url": "https://github.com/wolstat/slackathon1",
   "author":"Michael Wolstat, Jonathan Zee, Adrian Borromeo, Jack Nealy",
-
+  "update_url": "https://github.com/wolstat/slackathon1/raw/master/update-manifest.xml",
   "oauth2": {
-    "client_id": "696763237280-bkfouv0030la6l9t2g1elim04no836fq.apps.googleusercontent.com",
+    "client_id": "908477540370-rr8mk5rd5etaeq13v8bmn7fh1u4s2a68.apps.googleusercontent.com",
     "scopes": [
-      "https://www.googleapis.com/auth/drive"
+      "https://slack.com/oauth/authorize"
     ]
   },
-// Slack scopes identify, read, post, client
-
-/*
-  "icons": {
-    "128": "icon_128.png"
-  },
-  "key": "MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCXaBUTn1PNjYo8fg+1JBmWBA3bdrn7siqzkY0tYeuNHIWi5ji+6V5Y3QWYRFQh3AFwrZaBItvaM3fsit7K++kDoD67VhYGrGd+mjl4Htmp+/HbzzCQMBJdTdTOvR722+VHmIttzbe/I7GB3a74KvPYfUENONj1tswyKkuXeMgFOQIDAQAB",
-  "app": {
-    "background": {
-      "scripts": ["js/background.js"]
-    }
-  },
-*/
   "icons": {
     "128": "img/icon_128.png"
   },
@@ -34,7 +23,8 @@
   "browser_action": {
     "default_icon": {   
       "19": "img/icon19.png", 
-      "38": "img/icon38.png"
+      "38": "img/icon38.png",
+      "128": "img/icon_128.png"
     },
     "default_popup": "index.html",
     "default_title": "Slack Ext"
@@ -54,11 +44,10 @@
     "idle",
     "identity",
     "storage",
-    "bookmarks",
     "activeTab",
-    "https://slack.com/api/"
-    //"https://ajax.googleapis.com/",
-    //"*://*/*"
+    "http://*.slack.com/*",
+    "https://*.slack.com/*",
+    "http://slack.com/*",
+    "https://slack.com/*"
   ]
 }
-
