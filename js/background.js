@@ -22,13 +22,11 @@ var _tsmSlackChromeExt = {
 	},
 	getToken : function(){ var self = this; //launchWebAuthFlow
 		self.log("getToken called");
-		//self.updateStatus('badtoken');
 		var state = "blah"; //unique string		
 	    var redirectUrl = chrome.identity.getRedirectURL();
-	    //var authUrl = "https://slack.com/api/auth.test?" +
 	    var authUrl = "https://slack.com/oauth/authorize?" +
 	        "client_id=" + self.appId +
-	        //"&redirect_uri=" + encodeURIComponent(redirectUrl) +
+	        "&redirect_uri=" + encodeURIComponent(redirectUrl) +
 	        "&scope=identify,read,post,client" +
 	        "&state=" + state;
 	    chrome.identity.launchWebAuthFlow({url: authUrl, interactive: true},
@@ -42,8 +40,8 @@ var _tsmSlackChromeExt = {
 					data:  {
 						client_id:self.appId,
 						client_secret:'a89093c067275195b42b7a478d9f7edf',
-						code:tempCode
-						//redirect_uri:encodeURIComponent(redirectUrl)
+						code:tempCode,
+						redirect_uri:redirectUrl
 					},
 					dataType: "json",
 					error: function( response ){
