@@ -50,6 +50,37 @@
 </nav>
 <div id="sections">
 
+  <section id="prefs">
+    <header>
+      <h2>Settings <!-- span class="uname"></span --></h2>
+      <span id="qalink" data-panel="qa"><i class="fa fa-th"></i></span>
+    </header>
+    <main class="preauth"><!-- class = connection status -->
+      <article class="detail">
+
+      <img class="pic" src="">
+      <dl>
+      <dt>Team</dt><dd><a class="team" target="_blank"></a></dd>
+      <!-- dt>Name</dt><dd class="uname"></dd -->
+      <dt>Highlight words</dt><dd><a class="highlight_words" target="_blank"></a></dd>
+      </dl>
+      <button id="clearPrefs" class="btn btn-primary">De-Authorize</button>
+      </article><!-- detail -->
+
+      <article class="authorize">
+        <p>This extension does not have premission to access Slack.</p>
+        <button id="oauth2" class="btn btn-primary">Grant Permission</button>
+        <!-- p>Or paste your Slack Auth Token below to log in with this extension, and then click 'Connect'.</p-->
+      </article><!-- authorize -->
+
+      <article class="connect">
+        <p>Connecting...</p>
+      </article><!-- connect -->
+
+      <legend><span class="appname"></span> v.<span class="appversion"></span></legend>
+    </main>
+  </section>
+
   <section id="reply">
     <header>
       <h2><span class="badge"></span> Conversation Name</h2>
@@ -121,37 +152,34 @@
         <textarea class="msg" placeholder="Enter quick reply"></textarea>
         <button type="button" class="test">Add Reply</button>
       </div -->
+      <button id="goconvo" class="btn btn-primary">goconvo</button>
 
     </main>
   </section>
 
-
-  <section id="prefs">
+ <section id="qa">
     <header>
-      <h2>Settings <!-- span class="uname"></span --></h2>
-      <span id="qa" data-panel="qa"><i class="fa fa-list-th"></i></span>
+      <h2>QA</h2>
     </header>
-    <main class="preauth"><!-- class = connection status -->
-      <article class="detail">
+    <main>
+      <button id="logRTM" class="btn btn-primary">log RTM</button>
 
-      <img class="pic" src="">
-      <dl>
-      <dt>Team</dt><dd><a class="team" target="_blank"></a></dd>
-      <!-- dt>Name</dt><dd class="uname"></dd -->
-      <dt>Highlight words</dt><dd><a class="highlight_words" target="_blank"></a></dd>
-      </dl>
-      </article><!-- detail -->
+      <button id="restartWss" class="btn btn-primary">Restart WSS</button>
 
-      <article class="authorize">
-        <p>Paste your Slack Auth Token below to log in with this extension, and then click 'Connect'.</p>
-        <p><a href="https://api.slack.com/web#authentication" target="_blank">Get your token here</a>.</p>
-      </article><!-- authorize -->
+      <button id="logConvometa" class="btn btn-primary">logConvos</button>
 
-      <article class="connect">
-        <p>Connecting...</p>
-      </article><!-- connect -->
+      <button id="logUsermeta" class="btn btn-primary">logUsers</button>
 
-      <form id="preferences">
+      <button id="popMsgCount" class="btn btn-primary">msgCount</button>
+     
+      <button id="reinit" class="btn btn-primary">Re-init Ext</button>
+
+      <button id="chromeTab" class="btn btn-primary">chromeTab</button>
+
+      <button id="logactive" class="btn btn-primary">logactive</button>
+
+      <p><a href="https://api.slack.com/web#authentication" target="_blank">Get your token here</a>.</p>
+      <form id="preferences" class="authorize">
         <div class="form-group">
           <label class="col-md-3 control-label" for="authToken">Slack Auth Token</label>
           <div class="col-md-6">
@@ -162,24 +190,14 @@
         <div class="col-md-3"></div>
         <div class="col-md-6">
           <button id="start-session" class="btn btn-primary">Connect</button>
-          <button id="clearPrefs" class="btn btn-primary">De-Authorize</button>
         </div>
       </form>
 
-      <!-- br>
-      <button id="restartWss" class="btn btn-primary">Restart WSS</button>
-      <a href="https://tsmproducts.slack.com/messages/" target="_blank" class="slack_open">Open in Slack<img src="img/hashtaglogo.png"></a>
-      <button id="logConvometa" class="btn btn-primary">logConvometa</button><button id="logUsermeta" class="btn btn-primary">logUsermeta</button>
-       <button id="popMsgCount" class="btn btn-primary">popMsgCount</button -->
-      
-      <!-- form>
-      <textarea maxlength="260" id="msg" placeholder="Enter quick reply"></textarea>
-      <button type="button" class="test">Add Reply</button>
-      </form -->
-      
-      <!-- button id="reinit" class="btn btn-primary">Re-initialize Extension</button -->
-    </header>
+      <legend><span class="appname"></span> v.<span class="appversion"></span></legend>
+
+    </main>
   </section>
+
 </div><!-- #sections -->
 </body>
 </html>

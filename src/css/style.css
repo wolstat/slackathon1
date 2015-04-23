@@ -122,8 +122,16 @@ body {
 	font-size: 100%;
 	width: 420px;
 }
+#qalink{
+	display: block;
+	display:none;
+	position: absolute;
+	top: 0;
+	right: 2px;
+	color:rgb(126, 106, 162);
+}
 section{
-	min-height:300px;
+	min-height:320px;
 }
 article{
 	margin-bottom:15px;
@@ -139,9 +147,10 @@ button {
 	border: none;
 	color: #ffffff;
 	height: 35px;
-	width: 85px;
+	width: 82px;
 	float: left;
-	margin:15px 15px 0 0;
+	margin:0 15px 15px 0;
+	cursor:pointer;
 }
 nav.nav{
   position:absolute;
@@ -199,7 +208,7 @@ section main::after {
   clear: both;
   display: block;
 }
-#users, #convo{
+.sections > section{
 	display:none;
 }
 section header{
@@ -218,6 +227,9 @@ span.badge{
 h2 span.badge{
 	padding:2px 7px;
 	margin-right:2px;
+}
+h2.ct span.badge{
+	display:none;
 }
 td span.badge{
 	font-size:12px;
@@ -241,10 +253,8 @@ section dl a{
 section dd{
 	color:#555;
 	font-size:13px;
-}
-section dd{
 	text-indent: 15px;
-	margin:4px 0 10px;
+	margin:4px 0 8px;
 }
 section dl a:hover{
 	color:#000;
@@ -299,10 +309,10 @@ section#convo main .user .close:hover {
 	background-image: url("img/close_dark.png");
 }
 section main .pic {
-	width: 72px;
-	height: 72px;
+	width: 82px;
+	height: 82px;
 	float: left;
-	margin:0 15px 10px 0;
+	margin:0 15px 15px 0;
 	border-radius: 5px;
 }
 section#convo main .message {
@@ -331,15 +341,11 @@ section#users main{
 section#users main .team{
 	position: relative;
 	display: inline-block;
-	margin: 0 0 3px 6px;
-	height:32px;
-	width:32px;
+	margin: 0 0 6px 6px;
+	height:38px;
+	width:38px;
 	background:#777;
 	cursor:pointer;
-	border:solid 3px #3A3;
-}
-section#users main .team.away{
-	border:solid 3px #A33;
 }
 section#users main .team .badge{
 	opacity:1;
@@ -349,6 +355,14 @@ section#users main .team .badge{
 	font-size: 12px;
 	padding: 0px 4px;
 	line-height: 17px;
+}
+section#users main .team img{
+	border:solid 3px #3A3;
+	height:32px;
+	width:32px;
+}
+section#users main .team.away img{
+	border:solid 3px #A33;
 }
 section#convo tr:nth-child(odd) {background: #EEE}
 section#convo table{
@@ -375,15 +389,19 @@ section#convo tr td{
 section#convo tr:hover:nth-child(even) {background: #F8F8F8}
 section#convo tr:hover:nth-child(odd) {background: #E8E8E8}
 section#convo tr:hover a{
-	text-decoration:underline;
+	_text-decoration:underline;
 }
-section#convo legend{
-	margin-top:10px;
+section legend{
+	margin-top: 10px;
 	text-align: right;
 	display: block;
-	width: 100%;
+	width: 93%;
 	color: #999;
 	font-size: 14px;
+	position: absolute;
+	bottom: 0;
+	right: 15px;
+	padding: 15px 0 15px 15px;
 }
 
 section#prefs main article{
@@ -394,15 +412,9 @@ section#prefs main.init .connect,
 section#prefs main.active .detail{
 	display:block;
 }
-
-section#prefs form{
-	clear: both;
+section#prefs #clearPrefs{
+	clear:left;
 }
-section#prefs form input{
-	width:99%;
-}
-
-
 section#reply .message textarea{
 	width:100%;
 }
@@ -419,4 +431,12 @@ section#profile #profile192{
 	float:left;
 	margin:0 15px 10px 0;
 	border-radius: 5px;
+}
+
+section#qa form{
+	clear: both;
+}
+section#qa form input{
+	width:99%;
+	margin-bottom:15px;
 }

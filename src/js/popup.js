@@ -17,45 +17,64 @@
 
 		//listUsers.init();
 		//displayMessage.init();
-		bg.setPopEnv( window, $);
+		bg.setPopEnv( window, $); //let bg.js know popup exists
 
-		$( window ).unload(function() {
+		$( window ).unload(function() { //let bg.js know popup ceased to exist
 			bg.unsetPopEnv();
 		});
 
-		$('body').on('click', '#logConvometa', function(e){
-			bg.logConvometa();
+//////QA BUTTONS
+		$('body').on('click', '.appname', function(e){
+			bg.showQaLink();
 		});
 
+		$('body').on('click', '#qalink', function(e){
+			bg.displayPanel( 'qa' );
+			$('section#prefs').find('#qalink').hide();
+		});
 
-
-		$('body').on('click', '#popMsgCount', function(e){
-			alert(JSON.stringify(bg.dee.convometa));
+		$('body').on('click', '#logConvometa', function(e){
+			bg.log("convometa ::"+JSON.stringify(bg.dee.convometa));
 		});
 
 		$('body').on('click', '#logUsermeta', function(e){
-			bg.logUsermeta();
+			bg.log("usermeta ::"+JSON.stringify(bg.dee.usermeta));
 		});
 
+		$('body').on('click', '#logRTM', function(e){
+			bg.log("RTM START "+JSON.stringify(bg.rtm)+" RTM END");
+		});
 
-		$('body').on('click', '#clearPrefs', function(e){
-			bg.clearPrefs();
+		$('body').on('click', '#oauth2', function(e){
+			bg.getToken();
+		});
+
+		$('body').on('click', '#logactive', function(e){
+			bg.log("active START "+JSON.stringify(bg.active)+" active END");
 		});
 
 		$('body').on('click', '#authSlack', function(e){
 			bg.getToken();
 		});
 
-		$('body').on('click', '#logConvos', function(e){
-			bg.logConvos();
-		});
+		$('body').on('click', '#goconvo button', function(e){
+	        bg.displayPanel('reply');
+	        //return false;
+	    });
 
 		$('body').on('click', '#restartWss', function(e){
-			bg.startWss( bg.prefs.authToken );
+			bg.restartWss();
 		});
 
-		$('body').on('click', '#testWss', function(e){
-			bg.testWss();
+		$('body').on('click', '#chromeTab', function(e){
+			bg.log(JSON.stringify(bg.active.chromeTab));
+		});
+		
+////////END QA BUTTONS
+
+
+		$('body').on('click', '#clearPrefs', function(e){
+			bg.clearPrefs();
 		});
 
 		$('body').on('click', '#start-session', function(e){
@@ -64,10 +83,9 @@
 	    });
 
 		$('body').on('click', '#viewprofile button', function(e){
-	        bg.viewProfile();
+	        bg.displayPanel('profile');
 	        //return false;
 	    });
-
 
 	    $(document).on('click', 'nav.nav span', function(e){
 	    	var pcheck, panel, obj;
@@ -94,14 +112,6 @@
 		$(document).on('click', '#users span.team img', function(e) {
 			bg.clickUser( $(e.target).closest('span.team').attr('id') );
 		});
-
-		$(document).on('click', '#header .tabs .left.arrow', function(e){
-			$('.tabs ul').prepend($(".tabs ul>li:last"));
-		});
-		$(document).on('click', '#header .tabs .right.arrow', function(e){
-			$('.tabs ul').append($(".tabs ul>li:first"));
-		});
-
 
 		$.fn.serializeObject = function(){
 		    var o = {};
@@ -137,7 +147,6 @@
 		$(this).find('em').stop().animate({'top':'24px'},{queue:false, duration:150, easing: 'easeOutQuart'});
 	});
 */
-
 		//this will be replaced by bg window post method
 		$('body').on('click', '.test', function(e){
 			var method = "chat.postMessage";
@@ -160,6 +169,9 @@
 				console.log(" ajax resomnse "+JSON.stringify(response))
 			});
 		});
+
+
+
 
 
 	});
