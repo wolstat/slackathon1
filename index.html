@@ -92,9 +92,9 @@
       <div class="message">
         <textarea id="msg" placeholder="Enter quick reply"></textarea>
         <button type="button" class="test">Add Reply</button>
-        <span class="nav"><button data-lastpanel="foo" class="cancel">Cancel</button></span>
+        <span class="nav"><button data-panel="convo" class="nav cancel">Cancel</button></span>
         <span id="viewprofile"><button class="viewprofile">View Profile</button></span>
-      </div>å
+      </div>
     </main>
   </section>
 
@@ -103,6 +103,7 @@
       <h2><span class="badge"></span> Unread Messages</h2>
     </header>
     <main>
+      <div class="scroller">
       <table>
         <!-- thead>
         <tr>
@@ -122,7 +123,7 @@
         </tbody>
       </table>
       <!-- button id="logConvos" class="btn btn-primary">Log Convos</button -->
-
+      </div>
       <legend>#channel, @direct-message, &#62;private-group</legend>
     </main>
   </section>
@@ -132,7 +133,31 @@
       <h2>Team Members</h2>
     </header>
     <main>
-      <span class="team" id="USLACKBOT"><span class="badge"></span><img data-id="USLACKBOT" title="Slack Bot" data-id="USLACKBOT" src="https://slack-assets2.s3-us-west-2.amazonaws.com/10068/img/slackbot_32.png" class="active"></span>
+      <div class="scroller">
+        <span class="team" id="USLACKBOT"><span class="badge"></span><img data-id="USLACKBOT" title="Slack Bot" data-id="USLACKBOT" src="https://slack-assets2.s3-us-west-2.amazonaws.com/10068/img/slackbot_32.png" class="active"></span>
+      </div>
+      <legend><span class="active">active</span> <span class="away">away</span></legend>
+    </main>
+  </section>
+
+  <section id="channels">
+    <header>
+      <h2>Channels</h2>
+    </header>
+    <main>
+      <div class="scroller">
+      <table>
+        <tbody>
+        <tr id="C0350HMMG">
+          <td class="col2"><span class="badge">2</span></td>
+          <td class="col1"><a href="https://tsmproducts.slack.com/messages/general-team" target="_blank">#general-team</a></td>
+          <td class="col3">-</td>
+          <td class="col4">-</td>
+        </tr>
+        </tbody>
+      </table>
+      </div>
+      <legend>#channel, @direct-message, &#62;private-group</legend>
     </main>
   </section>
 
@@ -152,7 +177,7 @@
         <textarea class="msg" placeholder="Enter quick reply"></textarea>
         <button type="button" class="test">Add Reply</button>
       </div -->
-      <button id="goconvo" class="btn btn-primary">goconvo</button>
+      <!-- button id="goconvo" class="btn btn-primary">goconvo</button -->
 
     </main>
   </section>
@@ -178,7 +203,7 @@
 
       <button id="logactive" class="btn btn-primary">logactive</button>
 
-      <p><a href="https://api.slack.com/web#authentication" target="_blank">Get your token here</a>.</p>
+      <p><a href="https://api.slack.com/web#authentication">Get your token here</a>.</p>
       <form id="preferences" class="authorize">
         <div class="form-group">
           <label class="col-md-3 control-label" for="authToken">Slack Auth Token</label>

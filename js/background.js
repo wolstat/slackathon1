@@ -1,10 +1,12 @@
 //TODO: delete rtm obj after all imports!
+//TODO: markConvo update reply panel info also
+//TODO: process messages replace <@UID> with @uname
+//TODO: prefs screen slack links use goSlackWebApp()
 //TODO: display messages in a channel on reply panel
 //TODO: clear convo from ext back to slack
 //TODO: get messages to send through the wss
 //TODO: scroll to bottom of chat message div:
 ///http://stackoverflow.com/questions/18614301/keep-overflow-div-scrolled-to-bottom-unless-user-scrolls-up
-//TODO: handle new IM session
 //TODO: handle new user
 var _tsmSlackChromeExt = {
 	authorize : function(){ var self = this;
@@ -23,7 +25,7 @@ var _tsmSlackChromeExt = {
 	getToken : function(){ var self = this; //launchWebAuthFlow
 		self.log("getToken called");
 		var state = "blah"; //unique string		
-	    var redirectUrl = chrome.identity.getRedirectURL();
+	    var redirectUrl = "https://nbmelpjiocjfgbkomjebhcodoklhhgmj.chromiumapp.org/"; //chrome.identity.getRedirectURL();
 	    var authUrl = "https://slack.com/oauth/authorize?" +
 	        "client_id=" + self.appId +
 	        "&redirect_uri=" + encodeURIComponent(redirectUrl) +
@@ -31,7 +33,7 @@ var _tsmSlackChromeExt = {
 	        "&state=" + state;
 	    chrome.identity.launchWebAuthFlow({url: authUrl, interactive: true},
 	        function(responseUrl) {
-				self.log("responseUrl:"+responseUrl); ///3118431681.4578378373.6378f6c3d9&state=blah
+				self.log("responseUrl:"+responseUrl);
 				var tempCode = responseUrl.substring(responseUrl.indexOf("=") + 1).replace('&state='+state,'');
 				console.log("tempCode:"+tempCode);
 				self.tokenRequest = $.ajax({
@@ -125,8 +127,8 @@ var _tsmSlackChromeExt = {
 	},
 	onChromeStateChange : function( state ){ var self = _tsmSlackChromeExt;
 		self.log('onChromeStateChange: '+state);
-		self.active.chrome = ( state === 'active' );
-	   if ( state === 'active' && typeof _tsmSlackChromeExt.wss !== 'undefined' && _tsmSlackChromeExt.wss !== null ) _tsmSlackChromeExt.maybeRestartWss();
+		self.active.chrome = state; // && typeof _tsmSlackChromeExt.wss !== 'undefined' && _tsmSlackChromeExt.wss !== null
+	   if ( state === 'active' ) _tsmSlackChromeExt.maybeRestartWss();
 	},
 	wssOnOpen : function () { var self = _tsmSlackChromeExt;
 		self.updateStatus('connected');
@@ -283,16 +285,22 @@ var _tsmSlackChromeExt = {
   		self.dee.convometa[ channel ].mention = 0;
   	},
 	markConvo: function( message, inc ){ var self = this; //update convo.channel obj
-        self.log("markConvo");
-		self.dee.messages.push(message);
-		var activeConvo = self.dee.convometa[ message.channel ];
-		if ( inc && message.user !== self.dee.self.id ) activeConvo.unread++;
-  		var highlights = self.rtm.self.prefs.highlight_words.split(',');
-  		for (word in highlights) { if ( message.text.indexOf( highlights[word].trim() ) !== -1 ) {
-			activeConvo.match++; type = 'match';
-  		}}
-  		if ( message.text.indexOf( '<@'+self.dee.self.id+'>' ) !== -1 ) {
-			activeConvo.mention++; type = 'mention';
+        if ( typeof message.text === undefined ) message.text = '';
+        if ( message.subtype === "bot_message" ) {
+        	message.text = message.attachments.text;
+        	self.log("markConvo message.subtype"+ message.subtype);
+        }
+        if (message.text) { //pesky bot messages
+			self.dee.messages.push(message);
+			var activeConvo = self.dee.convometa[ message.channel ];
+			if ( inc && message.user !== self.dee.self.id ) activeConvo.unread++;
+	  		var highlights = self.rtm.self.prefs.highlight_words.split(',');
+	  		for (word in highlights) { if ( message.text.indexOf( highlights[word].trim() ) !== -1 ) {
+				activeConvo.match++; type = 'match';
+	  		}}
+	  		if ( message.text.indexOf( '<@'+self.dee.self.id+'>' ) !== -1 ) {
+				activeConvo.mention++; type = 'mention';
+	  		}
   		}
 	},
   	//check message for any filter matches or <@uid> mentions
@@ -314,7 +322,7 @@ var _tsmSlackChromeExt = {
   	clickConvo : function ( convo ){ var self = _tsmSlackChromeExt;
   		//does convo have more unreads than messages in the queue? fetch history from slack?
   		this.log('clickConvo convo '+convo+ " - "+self.dee.convometa[ convo ].label);
-		if (true) { //check local preference - reply in app or open slack?
+		if (false) { //check local preference - reply in app or open slack?
 			self.goSlackWebApp( self.teamDomain+"messages/"+self.dee.convometa[ convo ].label );
 		} else {
 			self.active.convo = convo;
@@ -355,7 +363,7 @@ var _tsmSlackChromeExt = {
   	},
   	// set active panel while popup IS open
 	displayPanel : function( clicked ){ var self = _tsmSlackChromeExt;
-		self.active.lastpanel = self.active.panel;
+		//self.active.lastpanel = self.active.panel;
 		self.newPanel( clicked );
 		//this.log("displayPanel "+clicked);
 		if ( this.popEnv() ) {
@@ -370,9 +378,6 @@ var _tsmSlackChromeExt = {
 				}
 			});
 		}
-  	},
-  	goLastPanel : function(){ var self = _tsmSlackChromeExt; //to cancel out of a non-nav screen
-  		self.displayPanel(self.active.lastpanel);
   	},
   	showQaLink : function() { var self = _tsmSlackChromeExt;
 		self.jQ('section#prefs').find('#qalink').show();
@@ -406,42 +411,51 @@ var _tsmSlackChromeExt = {
 					jQ('nav.nav span.'+panel).addClass('selected');
 					jQ('section#convo').find('header h2').attr('class', 'ct'+msgCt );
 					jQ('section#convo').find('header h2 .badge').html( msgCt );
-					var tablehtml = "", co = self.dee.convometa;
-					for ( var c in co ) { if (co[c].unread > 0){
+					var readhtml = "", unreadhtml = "", co = self.dee.convometa;
+					for ( var c in co ) {
 						var pref = self.cPrefix[ co[c].id.substring(0,1) ];
-						tablehtml += '<tr id="'+co[c].id+'">';
-						tablehtml += '<td class="col1"><span class="badge">'+co[c].unread+'</span></td>';
-						tablehtml += '<td class="col2"><a>'+pref+co[c].label+'</a></td>';
-						tablehtml += '<td class="col3"><a>@'+co[c].mention+'</a></td>';
-						tablehtml += '<td class="col4"><a>#'+co[c].match+'</a></td></tr>';
-					}}
-					jQ('section#reply').find('button.cancel').attr('data-lastpanel', 'convo');
-					jQ('section#convo').find('main tbody').html( tablehtml );
+						if (co[c].unread > 0){
+							readhtml += '<tr id="'+co[c].id+'">';
+							readhtml += '<td class="col1"><span class="badge">'+co[c].unread+'</span></td>';
+							readhtml += '<td class="col2"><a>'+pref+co[c].label+'</a></td>';
+							readhtml += '<td class="col3"><a>@'+co[c].mention+'</a></td>';
+							readhtml += '<td class="col4"><a>#'+co[c].match+'</a></td></tr>';
+						} else if ( co[c].parent_type !== 'ims' ) {
+							unreadhtml += '<tr id="'+co[c].id+'"><td colspan="4" class="col1"><a>'+pref+co[c].label+'</a></td></tr>';
+						}
+					}
+					//jQ('section#reply').find('button.cancel').attr('data-lastpanel', 'convo');
+					jQ('section#convo').find('main tbody').html( readhtml + unreadhtml );
 					break;
 				case "users":
 					jQ('nav.nav span.'+panel).addClass('selected');
-					jQ('section#users').find('main').html('');
+					jQ('section#users').find('main .scroller').html('');
 					for ( var idx in self.dee.usermeta ){
-						var data = self.dee.usermeta[idx];
+						var data = self.dee.usermeta[idx],
+							umcount = '',
+							convoid = '';
 						//self.log( "panel users loop "+data.id );
 						//umcount = "";
-						var umcount = ( data.channel &&
-							C[ data.channel ] &&
-							C[ data.channel ].unread > 0 ) ? C[ data.channel ].unread + "" : "";
-						jQ('section#users').find('main').append('<span  class="'+ data.presence + ' team" id="'+data.id+'"><span class="badge">'+umcount+'</span><img data-id="'+data.id+'" title="'+data.real_name+'" data-id="'+data.id+'" src="'+data.profile.image_32+'""></span>');
+						if  ( data.channel && C[ data.channel ] && C[ data.channel ].unread > 0 ) {
+							umcount = C[ data.channel ].unread;
+							convoid = data.channel;
+						}
+						jQ('section#users').find('main .scroller').append('<span data-convo-id="'+convoid+'" class="'+ data.presence + ' team" id="'+data.id+'"><span class="badge">'+umcount+'</span><img data-id="'+data.id+'" title="'+data.real_name+'" data-id="'+data.id+'" src="'+data.profile.image_32+'""></span>');
 					}
-					jQ('section#reply').find('button.cancel').attr('data-lastpanel', 'users');
+					//jQ('section#reply').find('button.cancel').attr('data-lastpanel', 'users');
 					break;
 				case "reply":
 					var ms = self.dee.messages, msghtml = "";
 					for ( var m in ms ) { if (ms[m].channel === self.active.convo){
-						msghtml += '<div id="msg_1425924683_000026"><i class="timestamp ">2:11 PM</i><a class="member" data-member-id="'+ms[m].user+'"> '+U[ms[m].user].real_name+'</a>:';
+						self.log("panelRefresh convo message:"+JSON.stringify(ms[m]));
+						msghtml += '<div id="msg_1425924683_000026"><i class="timestamp ">'+self.makeTime(ms[m].ts)+'</i><a class="member" data-member-id="'+ms[m].user+'"> '+U[ms[m].user].real_name+'</a>:';
 						msghtml += '<span class="message_content">'+ms[m].text+'</span></div>';
 					}}
 					jQ('section#reply').find('.history').html( msghtml );
 					var cObj = self.dee.convometa[ self.active.convo ];
 					jQ('section#reply').find('#viewprofile').toggle( ( cObj.parent_type === 'ims') );
 					jQ('section#reply').find('#viewprofile').toggle( ( cObj.parent_type === 'ims') );
+					jQ('section#reply').find('header h2').attr('class', 'ct'+cObj.unread );
 					jQ('section#reply').find('h2').html( '<span class="badge">'+cObj.unread+'</span>'+cObj.label );
 					break;
 				case "profile":
@@ -549,7 +563,7 @@ var _tsmSlackChromeExt = {
   		mentions : 0, //total @mention count
   		directs : 0, //total IMs
   		chromeTab : {},
-  		lastpanel : '', //for peripheral panel cancel buttons, go back to the right place
+  		//lastpanel : '', //for peripheral panel cancel buttons, go back to the right place
   		profile : '', //user id, blank is just default
   		convo : 'C0458GXEA', //defailt to slack-project-1 //convo id, for reply page
   		chrome : true, //is chrome active?
@@ -644,7 +658,7 @@ var _tsmSlackChromeExt = {
 	},
   	makeTime : function( ts ){
   		var d = new Date(parseFloat(ts) * 1000);
-  		return d.toLocaleDateString();
+  		return d.toLocaleTimeString();
   		//d.toLocaleTimeString()
   	},
 	updateObject : function(obj, payload, matchField){ //update obj where obj.matchField === payload.matchField

@@ -12,10 +12,3 @@ https://chrome.google.com/webstore/detail/tsm-slack-helper/dcjhmokcdfafldjdiddhc
 Generate an auth token for Slack:
 https://api.slack.com/web#authentication
 
-
-Known issues:
-Authenticating works most reliably immediately after reloading the extension. If your attempt to authorize continues to fail, try reloading the extension via the chrome://extensions panel
-
-Message highlight filtering and @notifications not working yet
-
-Unread messages on reconnection may be recording one more than the actual number.

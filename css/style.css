@@ -131,7 +131,7 @@ body {
 	color:rgb(126, 106, 162);
 }
 section{
-	min-height:320px;
+	min-height:330px;
 }
 article{
 	margin-bottom:15px;
@@ -201,7 +201,7 @@ nav.nav span.selected:hover{
 	background-color:none;
 }
 section main{
-  padding: 15px;
+  padding:15px 15px 40px;
 }
 section main::after {
   content: '';
@@ -228,20 +228,31 @@ h2 span.badge{
 	padding:2px 7px;
 	margin-right:2px;
 }
-h2.ct span.badge{
+h2.ct0 span.badge{
 	display:none;
 }
 td span.badge{
 	font-size:12px;
 	padding:0 5px;
 }
+legend .active,
 h2 span.badge.active{
 	background:#3A3;
 	margin-left: 7px;
 }
+legend .away,
 h2 span.badge.away{
 	background:#A33;
 	margin-left: 7px;
+}
+legend .active,
+legend .away{
+	color:#FFF;
+	padding:2px 4px;
+}
+section .scroller{
+	overflow-y:auto;
+	max-height:220px;
 }
 section dt{
 	font-weight:bold;
@@ -412,7 +423,8 @@ section#prefs main.init .connect,
 section#prefs main.active .detail{
 	display:block;
 }
-section#prefs #clearPrefs{
+section#profile button,
+section#prefs button{
 	clear:left;
 }
 section#reply .message textarea{
@@ -421,9 +433,13 @@ section#reply .message textarea{
 section#reply .history{
 	overflow-y:auto;
 	font-size: 12px;
+	line-height: 18px;
 	max-height:250px;
+	padding:12px 0;
 }
 
+section#reply .history div{
+}
 section#profile #profile192{
 	height:150px;
 	width:150px;

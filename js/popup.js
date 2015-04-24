@@ -100,14 +100,22 @@
 	      	bg.displayPanel( panel );
 	    });
 
-	    $(document).on('click', '#reply .cancel', function(e){
-	    	//clickCancelPanel( panel ); reset active.lastPanel
-	      bg.goLastPanel();
+	    $(document).on('click', 'button.nav', function(e){
+	    	panel = $(e.target).attr('data-panel');
+			bg.displayPanel( panel );
 	    });
 
 		$(document).on('click', '#convo tr', function(e) {
 			if ( thisconvo = $(this).attr('id') ) { bg.clickConvo( thisconvo );}
 		});
+
+		$(document).on('click', '#users .team', function(e) {
+			if ( thisconvo = $(this).attr('data-convo-id') ) { bg.clickConvo( thisconvo );}
+		});
+
+		/*$(document).on('click', '.slacklink', function(e) {
+			if ( thisconvo = $(this).attr('data-slack-uri') ) { bg.clickConvo( thisconvo );}
+		}); */
 
 		$(document).on('click', '#users span.team img', function(e) {
 			bg.clickUser( $(e.target).closest('span.team').attr('id') );

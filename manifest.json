@@ -2,11 +2,10 @@
   "name": "TSM Slack helper",
   "short_name": "SlackHelp",
   "description": "This extension will alert you to new messages in Slack",
-  "version": "0.13",
+  "version": "0.14",
   "manifest_version": 2,
   "homepage_url": "https://github.com/wolstat/slackathon1",
   "author":"Michael Wolstat, Jonathan Zee, Adrian Borromeo, Jack Nealy",
-  "update_url": "https://github.com/wolstat/slackathon1/raw/master/update-manifest.xml",
   "oauth2": {
     "client_id": "908477540370-rr8mk5rd5etaeq13v8bmn7fh1u4s2a68.apps.googleusercontent.com",
     "scopes": [
