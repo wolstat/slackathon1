@@ -16,48 +16,52 @@ var _tsmSlackChromeExt = {
 		self.manifest = chrome.runtime.getManifest();
 		self.getPrefs( function(result) {
 			var prefs = result.prefs;
-			self.log('getPrefs success: result'+JSON.stringify(prefs));
+			self.log('authorize prefs: '+JSON.stringify(prefs));
 			if ( typeof prefs !== 'undefined' && prefs.authToken && prefs.authToken !== null ) {
+				self.prefs.authToken = prefs.authToken;
 				self.startWss( prefs.authToken );
 			}
 		});
 	},
 	getToken : function(){ var self = this; //launchWebAuthFlow
 		self.log("getToken called");
-		var state = "blah"; //unique string		
-	    var redirectUrl = "https://nbmelpjiocjfgbkomjebhcodoklhhgmj.chromiumapp.org/"; //chrome.identity.getRedirectURL();
-	    var authUrl = "https://slack.com/oauth/authorize?" +
-	        "client_id=" + self.appId +
-	        "&redirect_uri=" + encodeURIComponent(redirectUrl) +
-	        "&scope=identify,read,post,client" +
-	        "&state=" + state;
+		var state = "blah"; //unique string	
+		var chromeId = self.chromeId; //dcjhmokcdfafldjdiddhckfnkfkbklkm	
+	    //var redirectUrl = "https://nbmelpjiocjfgbkomjebhcodoklhhgmj.chromiumapp.org/"; //chrome.identity.getRedirectURL();
+	    var authUrl = "https://slack.com/oauth/authorize?" + //https://slack.com/oauth/authorize
+	        "client_id=" + self.slackId +
+	        //"&redirect_uri=" + encodeURIComponent(redirectUrl) +
+	        "&scope=identify,read,post,client";
+	        //"&state=" + state;
 	    chrome.identity.launchWebAuthFlow({url: authUrl, interactive: true},
 	        function(responseUrl) {
 				self.log("responseUrl:"+responseUrl);
-				var tempCode = responseUrl.substring(responseUrl.indexOf("=") + 1).replace('&state='+state,'');
-				console.log("tempCode:"+tempCode);
-				self.tokenRequest = $.ajax({
-					url: self.apiUrl+"oauth.access",
-					type: "get",
-					data:  {
-						client_id:self.appId,
-						client_secret:'a89093c067275195b42b7a478d9f7edf',
-						code:tempCode,
-						redirect_uri:redirectUrl
-					},
-					dataType: "json",
-					error: function( response ){
-						self.log("tokenRequest error response"+JSON.stringify(response));
-						self.updateStatus('unauthorized'); 
-					}, //error handling, bad token, service unavailable, etc.
-					success: function( response ){
-						self.log("tokenRequest success response"+JSON.stringify(response));
-						if ( response.access_token ) {
-							self.saveAuth( response );
-							self.startWss();
+				if (responseUrl) {
+					var tempCode = self.getQueryVariable(responseUrl, 'code');
+					console.log("tempCode:"+tempCode);
+					self.tokenRequest = $.ajax({
+						url: self.apiUrl+"oauth.access",
+						type: "get",
+						data:  {
+							client_id:self.slackId,
+							client_secret:self.slackSecret,
+							//redirect_uri:redirectUrl,
+							code:tempCode
+						},
+						dataType: "json",
+						error: function( response ){
+							self.log("tokenRequest error response"+JSON.stringify(response));
+							self.updateStatus('unauthorized'); 
+						}, //error handling, bad token, service unavailable, etc.
+						success: function( response ){
+							self.log("tokenRequest success response"+JSON.stringify(response));
+							if ( response.access_token ) {
+								self.saveAuth( response );
+								self.startWss();
+							}
 						}
-					}
-				});
+					});
+				}
 	    });
 	},
 	startWss : function( token ){ var self = this;
@@ -100,25 +104,25 @@ var _tsmSlackChromeExt = {
 				self.wss.onclose = self.wssOnClose;
 				self.wss.onerror = self.wssOnError;
 				self.wss.onmessage = self.wssOnEvent;
-				self.wss.send = self.wssSend;
+				//self.wss.send = self.wssSend;
 				self.teamDomain = 'https://'+self.rtm.team.domain+'.slack.com/';
 			}
 		});
 	},
 	restartWss : function(){ var self = _tsmSlackChromeExt;
-		var token = self.prefs.authToken;
 		self.wssClose();
-		self.startWss( token );
+		self.startWss();
 	},
-	maybeRestartWss: function(){ var self = _tsmSlackChromeExt;
-		if ( typeof self.wss.readyState === undefined || self.wss.readyState === 0 || self.wss.readyState === 3 ) {
+	checkWss: function(){ var self = _tsmSlackChromeExt; //self.wss.readyState will still equal 1 for a dead connection
+		if ( self.wss === null || 
+		typeof self.wss.readyState === undefined ) {
 			self.restartWss();
 			self.log('Wss restarted - readyState '+self.wss.readyState);			
 		} else {
 			var data = new ArrayBuffer(10000000);
 			self.wss.send(data);
 			if (self.wss.bufferedAmount === 0) {
-				self.log('maybeRestartWss decided not to restart self.wss.readyState = '+self.wss.readyState);
+				self.log('checkWss decided not to restart self.wss.readyState = '+self.wss.readyState);
 			} else {
 				self.restartWss();
 				self.log('Wss restarted - ArrayBuffer did not send self.wss.readyState = '+self.wss.readyState);			
@@ -128,26 +132,25 @@ var _tsmSlackChromeExt = {
 	onChromeStateChange : function( state ){ var self = _tsmSlackChromeExt;
 		self.log('onChromeStateChange: '+state);
 		self.active.chrome = state; // && typeof _tsmSlackChromeExt.wss !== 'undefined' && _tsmSlackChromeExt.wss !== null
-	   if ( state === 'active' ) _tsmSlackChromeExt.maybeRestartWss();
+		if ( state === 'active' ) self.checkWss();
 	},
 	wssOnOpen : function () { var self = _tsmSlackChromeExt;
-		self.updateStatus('connected');
 	    self.log("wssOnOpen");
+		self.updateStatus('connected');
+		setTimeout(function(){ self.updateStatus('message'); }, 2000); //clear connected badge display
 	},
 	wssOnClose : function () { var self = _tsmSlackChromeExt;
+	    self.log("wssOnClose");
+    	self.shutdown();
 		self.updateStatus('disconnected');
 		self.newPanel('prefs');
-	    self.log("wssOnClose");
-	    self.maybeRestartWss();
+	    self.checkWss();
 	},
 	wssOnError : function () { var self = _tsmSlackChromeExt;
 		//_tsmSlackChromeExt.updateStatus('disconnected');
 		//_tsmSlackChromeExt.newPanel('prefs');
 	    self.log("wssOnError");
-		//_tsmSlackChromeExt.maybeRestartWss(); //wrap this in some logic to prevent infinite error loop
-	},
-	wssSend : function (data) { //wss
-		//return "{'as_user':true,'type':'message','channel','"+channel+"', 'text':'"+message+"'}";
+		//_tsmSlackChromeExt.checkWss(); //wrap this in some logic to prevent infinite error loop
 	},
 	wssOnEvent : function (evt) { var self = _tsmSlackChromeExt;
 	    var eObj = $.parseJSON(evt.data);
@@ -174,9 +177,16 @@ var _tsmSlackChromeExt = {
 		self.log('wssClose');
 		this.wss.onclose = function () {}; // disable onclose handler first
     	self.wss.close();
+    	self.shutdown();
 		self.updateStatus('logout');			
 	},
+	shutdown : function(){
+    	delete self.rtm;//session data
+    	delete self.dee;//operating metadata
+    	delete self.wss;//sockets session
+	},
 	updateStatus : function ( state ) { var self = this;
+		self.log('updateStatus state:'+state);
 		self.has.auth = self.statuses[state].hasAuth;
 		if (self.statuses[state].prefclass) self.newPrefsClass( self.statuses[state].prefclass );
 		self.active.state = state;
@@ -235,7 +245,7 @@ var _tsmSlackChromeExt = {
   	},
   	//take fresh rtm session data and pull out convo meta and unread messages
   	importConvos : function(){ var self = this;
-  		var co, cObjects = self.convoTypes;
+  		var co, cObjects = self.convoTypes, newm = false;
   		for ( co in cObjects ) {
   			var l, list = self.rtm[ cObjects[co].n ];
 			for ( l in list) {
@@ -245,9 +255,11 @@ var _tsmSlackChromeExt = {
 					var msg = list[l].latest;
 					msg['channel'] = list[l].id;
 					self.markConvo(msg, false);	
+					newm = true;
 				}
 			}
 		}
+		if (newm) self.updateStatus('message');
   	},
   	newConvo : function ( convo ){ var self = this;
   		var type = (convo.is_channel) ? 'channels' : 'groups', label = convo.name;
@@ -267,7 +279,6 @@ var _tsmSlackChromeExt = {
 			"mention":0,
 			"match":0
 		};
-	    self.updateStatus('message');
   	},
   	// pull all messages from a read channel out of queue
 	unmarkConvo : function( obj ){ var self = this;
@@ -316,7 +327,7 @@ var _tsmSlackChromeExt = {
   		if ( message.text.indexOf( '<@'+self.dee.self.id+'>' ) !== -1 ) {
 			activeConvo.mention++; type = 'mention';
   		}
-		self.updateStatus(type);
+		//self.updateStatus(type);
 		//self.makeUrgentState();
   	},
   	clickConvo : function ( convo ){ var self = _tsmSlackChromeExt;
@@ -425,7 +436,22 @@ var _tsmSlackChromeExt = {
 						}
 					}
 					//jQ('section#reply').find('button.cancel').attr('data-lastpanel', 'convo');
-					jQ('section#convo').find('main tbody').html( readhtml + unreadhtml );
+					jQ('section#convo').find('main tbody').html( readhtml ); // + unreadhtml
+					break;
+				case "channels":
+					var msgCt = self.active.unreads; //self.getMessageCount();
+					jQ('nav.nav span.'+panel).addClass('selected');
+					jQ('section#convo').find('header h2').attr('class', 'ct'+msgCt );
+					jQ('section#convo').find('header h2 .badge').html( msgCt );
+					var readhtml = "", unreadhtml = "", co = self.dee.convometa;
+					for ( var c in co ) {
+						var pref = self.cPrefix[ co[c].id.substring(0,1) ];
+						if ( co[c].parent_type !== 'ims' ) {
+							unreadhtml += '<tr id="'+co[c].id+'"><td colspan="4" class="col1"><a>'+pref+co[c].label+'</a></td></tr>';
+						}
+					}
+					//jQ('section#reply').find('button.cancel').attr('data-lastpanel', 'convo');
+					jQ('section#convo').find('main tbody').html( unreadhtml );
 					break;
 				case "users":
 					jQ('nav.nav span.'+panel).addClass('selected');
@@ -509,6 +535,7 @@ var _tsmSlackChromeExt = {
   	},
   	clearPrefs : function (){
 		this.log('clearPrefs called');
+		this.prefs.authToken = '';
 		chrome.storage.local.clear(function() {
 			_tsmSlackChromeExt.wssClose();
 			_tsmSlackChromeExt.log('clearPrefs success');
@@ -574,7 +601,9 @@ var _tsmSlackChromeExt = {
   	dee : {}, //main obj for data storage
   	hasAuth : false, //is current session authorized
 	apiUrl : "https://slack.com/api/", 
-	appId : "3118431681.4197732086", //ID to access Slack API
+	slackId : "3118431681.4197732086", //ID to access Slack API
+	slackSecret : "a89093c067275195b42b7a478d9f7edf",
+	chromeId : "dcjhmokcdfafldjdiddhckfnkfkbklkm", //chrome web store ID
   	prefs : { //save whole object directly to localStorage.prefs
 		authToken : null,
 	},
@@ -617,7 +646,7 @@ var _tsmSlackChromeExt = {
 			panel:'prefs',
 			message:'Invalid token',
 			color:'#000',
-			text:'!!'
+			text:'!#!'
 		},
 		unauthorized:{
 			prefclass : 'preauth',
@@ -640,8 +669,8 @@ var _tsmSlackChromeExt = {
 			hasAuth : true,
 			//panel:'prefs',
 			message:'Connected to Slack',
-			color:'#C13', //3AF
-			text:''
+			color:'#3A3', //3AF
+			text:'+'
 		},
 		message:{
 			prefclass : 'active',
@@ -671,6 +700,17 @@ var _tsmSlackChromeExt = {
 			this.log("updateObj new line:"+JSON.stringify( obj[l] ) );
 			break;
 		}}
+	},
+	getQueryVariable : function (url, variable) {
+	  var query = url.split("?")[1];
+	  var vars = query.split("&");
+	  for (var i=0;i<vars.length;i++) {
+	    var pair = vars[i].split("=");
+	    if (pair[0] == variable) {
+	      return pair[1];
+	    }
+	  }
+	  return null;
 	},
 	getObjectItem : function(obj, value, matchField){ //return property where obj.matchField === value
 		var mKey = matchField || 'id'; //defaults to id

@@ -242,7 +242,7 @@ h2 span.badge.active{
 }
 legend .away,
 h2 span.badge.away{
-	background:#A33;
+	background:rgba(135, 119, 168, 1);
 	margin-left: 7px;
 }
 legend .active,
@@ -253,6 +253,9 @@ legend .away{
 section .scroller{
 	overflow-y:auto;
 	max-height:220px;
+}
+.message button{
+	margin-bottom:-10px;
 }
 section dt{
 	font-weight:bold;
@@ -373,7 +376,7 @@ section#users main .team img{
 	width:32px;
 }
 section#users main .team.away img{
-	border:solid 3px #A33;
+	border:solid 3px rgba(135, 119, 168, 0.4);
 }
 section#convo tr:nth-child(odd) {background: #EEE}
 section#convo table{
@@ -434,8 +437,9 @@ section#reply .history{
 	overflow-y:auto;
 	font-size: 12px;
 	line-height: 18px;
-	max-height:250px;
-	padding:12px 0;
+	max-height:200px;
+	min-height:135px;
+	padding:0 0 12px;
 }
 
 section#reply .history div{
