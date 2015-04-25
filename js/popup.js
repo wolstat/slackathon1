@@ -1,17 +1,10 @@
 (function($){
 
-	var bg = chrome.extension.getBackgroundPage()._tsmSlackChromeExt;
-	if ( bg.has.auth ) {
-	    var me = bg.rtm.self,
-	    mQ = bg.rtm.messages,
-	    cc = bg.rtm.convos,
-	    channel = bg.rtm.channels,
-	    users = bg.rtm.users;
-	}
+	var bg = chrome.extension.getBackgroundPage()._tsmSlackHelper;
 
 	$(document).ready(function(){
 		//access bg window methods and properties like so:
-		//bgw._tsmSlackChromeExt.function();
+		//bgw._tsmSlackHelper.function();
 		// access data: user[ data.user ].name
 		// access data: channel[ data.channel ].name
 
@@ -113,6 +106,11 @@
 			if ( thisconvo = $(this).attr('data-convo-id') ) { bg.clickConvo( thisconvo );}
 		});
 
+		$('body').on('click', '.post', function(e){
+			var msg = document.getElementById('msg').value;
+			bg.postMessage(msg);
+		});
+
 		/*$(document).on('click', '.slacklink', function(e) {
 			if ( thisconvo = $(this).attr('data-slack-uri') ) { bg.clickConvo( thisconvo );}
 		}); */
@@ -155,33 +153,6 @@
 		$(this).find('em').stop().animate({'top':'24px'},{queue:false, duration:150, easing: 'easeOutQuart'});
 	});
 */
-		//this will be replaced by bg window post method
-		$('body').on('click', '.test', function(e){
-			var method = "chat.postMessage";
-			var token = "?token=xoxp-3118431681-3135145631-4229637403-9444ae";//+bg.prefs.authToken;
-			var msg = document.getElementById('msg').value; //$('#msg').val();
-			var channel = bg.active.convo;
-			console.log("click:"+typeof msg+"::"+msg.length);
-			var request = $.ajax({
-				url: "https://slack.com/api/"+method+token,
-				type: "get",
-				data:  {
-					//"id": 1,
-					"as_user" : true,
-					"type": "message",
-					"channel": channel, // "C0458GXEA", //"C033GCPLP",
-					"text": msg
-				},
-				dataType: "json"
-			}).done( function(response){
-				console.log(" ajax resomnse "+JSON.stringify(response))
-			});
-		});
-
-
-
-
-
 	});
 })(jQuery);
 

@@ -8,7 +8,7 @@
 //TODO: scroll to bottom of chat message div:
 ///http://stackoverflow.com/questions/18614301/keep-overflow-div-scrolled-to-bottom-unless-user-scrolls-up
 //TODO: handle new user
-var _tsmSlackChromeExt = {
+var _tsmSlackHelper = {
 	authorize : function(){ var self = this;
 		//var IdleState;
 		self.updateStatus('preauth');			
@@ -109,50 +109,55 @@ var _tsmSlackChromeExt = {
 			}
 		});
 	},
-	restartWss : function(){ var self = _tsmSlackChromeExt;
+	restartWss : function(){ var self = _tsmSlackHelper;
+		self.log('restartWss called');
 		self.wssClose();
 		self.startWss();
 	},
-	checkWss: function(){ var self = _tsmSlackChromeExt; //self.wss.readyState will still equal 1 for a dead connection
+	checkWss: function(){ var self = _tsmSlackHelper; //self.wss.readyState will still equal 1 for a dead connection
+		self.log('checkWss called');
 		if ( self.wss === null || 
-		typeof self.wss.readyState === undefined ) {
+		typeof self.wss.readyState === undefined ||
+		self.wss.readyState == 2 ||
+		self.wss.readyState == 3) {
+			self.log('checkWss - readyState '+self.wss.readyState);			
 			self.restartWss();
-			self.log('Wss restarted - readyState '+self.wss.readyState);			
 		} else {
 			var data = new ArrayBuffer(10000000);
 			self.wss.send(data);
-			if (self.wss.bufferedAmount === 0) {
-				self.log('checkWss decided not to restart self.wss.readyState = '+self.wss.readyState);
+			var buf = self.wss.bufferedAmount;
+			if (buf === 0) {
+				self.log('checkWss decided not to restart self.wss.readyState:'+self.wss.readyState);
 			} else {
+				self.log('checkWss - ArrayBuffer: '+buf+' self.wss.readyState:'+self.wss.readyState);			
 				self.restartWss();
-				self.log('Wss restarted - ArrayBuffer did not send self.wss.readyState = '+self.wss.readyState);			
 			}
 		}
 	},
-	onChromeStateChange : function( state ){ var self = _tsmSlackChromeExt;
+	onChromeStateChange : function( state ){ var self = _tsmSlackHelper;
 		self.log('onChromeStateChange: '+state);
-		self.active.chrome = state; // && typeof _tsmSlackChromeExt.wss !== 'undefined' && _tsmSlackChromeExt.wss !== null
+		self.active.chrome = state; // && typeof _tsmSlackHelper.wss !== 'undefined' && _tsmSlackHelper.wss !== null
 		if ( state === 'active' ) self.checkWss();
 	},
-	wssOnOpen : function () { var self = _tsmSlackChromeExt;
+	wssOnOpen : function () { var self = _tsmSlackHelper;
 	    self.log("wssOnOpen");
 		self.updateStatus('connected');
 		setTimeout(function(){ self.updateStatus('message'); }, 2000); //clear connected badge display
 	},
-	wssOnClose : function () { var self = _tsmSlackChromeExt;
+	wssOnClose : function () { var self = _tsmSlackHelper;
 	    self.log("wssOnClose");
     	self.shutdown();
 		self.updateStatus('disconnected');
 		self.newPanel('prefs');
 	    self.checkWss();
 	},
-	wssOnError : function () { var self = _tsmSlackChromeExt;
-		//_tsmSlackChromeExt.updateStatus('disconnected');
-		//_tsmSlackChromeExt.newPanel('prefs');
+	wssOnError : function () { var self = _tsmSlackHelper;
+		//_tsmSlackHelper.updateStatus('disconnected');
+		//_tsmSlackHelper.newPanel('prefs');
 	    self.log("wssOnError");
-		//_tsmSlackChromeExt.checkWss(); //wrap this in some logic to prevent infinite error loop
+		//_tsmSlackHelper.checkWss(); //wrap this in some logic to prevent infinite error loop
 	},
-	wssOnEvent : function (evt) { var self = _tsmSlackChromeExt;
+	wssOnEvent : function (evt) { var self = _tsmSlackHelper;
 	    var eObj = $.parseJSON(evt.data);
 	    self.log("wssOnEvent evt.data "+evt.data);
 	    if ( eObj.type === 'message' && typeof eObj.reply_to === 'undefined' ) {
@@ -300,7 +305,7 @@ var _tsmSlackChromeExt = {
         if ( message.subtype === "bot_message" ) {
         	message.text = message.attachments.text;
         	self.log("markConvo message.subtype"+ message.subtype);
-        }
+        }//group_leave
         if (message.text) { //pesky bot messages
 			self.dee.messages.push(message);
 			var activeConvo = self.dee.convometa[ message.channel ];
@@ -330,7 +335,7 @@ var _tsmSlackChromeExt = {
 		//self.updateStatus(type);
 		//self.makeUrgentState();
   	},
-  	clickConvo : function ( convo ){ var self = _tsmSlackChromeExt;
+  	clickConvo : function ( convo ){ var self = _tsmSlackHelper;
   		//does convo have more unreads than messages in the queue? fetch history from slack?
   		this.log('clickConvo convo '+convo+ " - "+self.dee.convometa[ convo ].label);
 		if (false) { //check local preference - reply in app or open slack?
@@ -340,7 +345,7 @@ var _tsmSlackChromeExt = {
 			self.displayPanel('reply');			
 		}
   	},
-  	clickUser : function ( user ){ var self = _tsmSlackChromeExt;
+  	clickUser : function ( user ){ var self = _tsmSlackHelper;
 		this.log('clickUser self.active.profile = '+JSON.stringify(self.dee.usermeta[ user ]));
   		var panel = 'reply', u = self.dee.usermeta[ user ], C = self.dee.convometa;
 		//this.log('clickUser u.channel '+u.channel+ " - "+C[ u.channel ]);
@@ -360,8 +365,20 @@ var _tsmSlackChromeExt = {
   		//self.log('newPanel: '+panel);
   		self.active.panel = panel;
   	},
+  	postMessage : function(msg){ var self = _tsmSlackHelper;
+  		var data = {"as_user":true,"type":"message","channel":self.active.convo,"text":msg};
+		self.log("postMessage: "+data);
+		var request = $.ajax({
+			url: "https://slack.com/api/chat.postMessage?token="+self.prefs.authToken,
+			type: "get",
+			data:  data,
+			dataType: "json"
+		}).done( function(response){
+			console.log("postMessage response:"+JSON.stringify(response))
+		});
+  	},
   	/***************** HTML FUNCTIONS *****************************************/
-  	newPrefsClass : function ( prefclass ) { var self = _tsmSlackChromeExt;
+  	newPrefsClass : function ( prefclass ) { var self = _tsmSlackHelper;
   		//self.log('newPrefsClass: '+prefclass);
   		var prefclass = prefclass || self.active.prefclass;
   		if ( this.popEnv() ) {
@@ -373,8 +390,7 @@ var _tsmSlackChromeExt = {
   		self.active.prefclass = prefclass;
   	},
   	// set active panel while popup IS open
-	displayPanel : function( clicked ){ var self = _tsmSlackChromeExt;
-		//self.active.lastpanel = self.active.panel;
+	displayPanel : function( clicked ){ var self = _tsmSlackHelper;
 		self.newPanel( clicked );
 		//this.log("displayPanel "+clicked);
 		if ( this.popEnv() ) {
@@ -390,7 +406,7 @@ var _tsmSlackChromeExt = {
 			});
 		}
   	},
-  	showQaLink : function() { var self = _tsmSlackChromeExt;
+  	showQaLink : function() { var self = _tsmSlackHelper;
 		self.jQ('section#prefs').find('#qalink').show();
   	},
   	panelUpdate : function( panel ){ //panelUpdate called to update data values when the user may be looking at the page 
@@ -402,14 +418,14 @@ var _tsmSlackChromeExt = {
   	},
   	removeConvoRow : function (id){ //needed? should we just do a panelRefresh?
   		if ( this.popEnv() ) {
-			var self = _tsmSlackChromeExt,
+			var self = _tsmSlackHelper,
 			jQ = self.jQ;
 			jQ('section#convo').find('tr#'+id).remove;
 		}
   	},
   	panelRefresh : function ( panel ){ //panelRefresh called when panel switches
   		if ( this.popEnv() ) {
-			var self = _tsmSlackChromeExt,
+			var self = _tsmSlackHelper,
 			panel = panel || self.active.panel, 
 			jQ = self.jQ,
 			w = self.popWin,
@@ -435,7 +451,6 @@ var _tsmSlackChromeExt = {
 							unreadhtml += '<tr id="'+co[c].id+'"><td colspan="4" class="col1"><a>'+pref+co[c].label+'</a></td></tr>';
 						}
 					}
-					//jQ('section#reply').find('button.cancel').attr('data-lastpanel', 'convo');
 					jQ('section#convo').find('main tbody').html( readhtml ); // + unreadhtml
 					break;
 				case "channels":
@@ -450,7 +465,6 @@ var _tsmSlackChromeExt = {
 							unreadhtml += '<tr id="'+co[c].id+'"><td colspan="4" class="col1"><a>'+pref+co[c].label+'</a></td></tr>';
 						}
 					}
-					//jQ('section#reply').find('button.cancel').attr('data-lastpanel', 'convo');
 					jQ('section#convo').find('main tbody').html( unreadhtml );
 					break;
 				case "users":
@@ -468,7 +482,6 @@ var _tsmSlackChromeExt = {
 						}
 						jQ('section#users').find('main .scroller').append('<span data-convo-id="'+convoid+'" class="'+ data.presence + ' team" id="'+data.id+'"><span class="badge">'+umcount+'</span><img data-id="'+data.id+'" title="'+data.real_name+'" data-id="'+data.id+'" src="'+data.profile.image_32+'""></span>');
 					}
-					//jQ('section#reply').find('button.cancel').attr('data-lastpanel', 'users');
 					break;
 				case "reply":
 					var ms = self.dee.messages, msghtml = "";
@@ -513,7 +526,7 @@ var _tsmSlackChromeExt = {
 			}
 		}
   	},
-  	oncePerSession : function(jQ){ var self = _tsmSlackChromeExt;
+  	oncePerSession : function(jQ){ var self = _tsmSlackHelper;
 		jQ('body').find('.appname').html( self.manifest.name );
 		jQ('body').find('.appversion').html( self.manifest.version );
   	},
@@ -530,18 +543,18 @@ var _tsmSlackChromeExt = {
   	savePrefs : function(){
 		this.log('savePrefs called');
 		chrome.storage.local.set({'prefs': this.prefs}, function() {
-			_tsmSlackChromeExt.log('savePrefs success');
+			_tsmSlackHelper.log('savePrefs success');
 		});
   	},
   	clearPrefs : function (){
 		this.log('clearPrefs called');
 		this.prefs.authToken = '';
 		chrome.storage.local.clear(function() {
-			_tsmSlackChromeExt.wssClose();
-			_tsmSlackChromeExt.log('clearPrefs success');
+			_tsmSlackHelper.wssClose();
+			_tsmSlackHelper.log('clearPrefs success');
 		});
   	},
-  	goSlackWebApp : function ( url ) { var self = _tsmSlackChromeExt;
+  	goSlackWebApp : function ( url ) { var self = _tsmSlackHelper;
   		//find a tab with baseurl https://tsmproducts.slack.com/ and re-use?
   		var props = {url:url}, tid = self.active.chromeTab.id;
   		this.log('goSlackWebApp url '+url+" id:"+self.active.chromeTab.id+"  ");
@@ -556,16 +569,16 @@ var _tsmSlackChromeExt = {
 	  		});
   		} else { self.createTab(url); }
   	},
-  	createTab : function ( url ){ var self = _tsmSlackChromeExt;
+  	createTab : function ( url ){ var self = _tsmSlackHelper;
   		//self.log('createTab '+url); 
   		var props = {url:url};
   		chrome.tabs.create( props, function(tab){
-  			_tsmSlackChromeExt.active.chromeTab = tab;
+  			_tsmSlackHelper.active.chromeTab = tab;
   		});
   	},
   	popEnv : function(){ return ( this.jQ !== null && this.popWin !== null ); },
-  	unsetPopEnv : function(){ _tsmSlackChromeExt.popWin = null; _tsmSlackChromeExt.jQ = null; },
-  	setPopEnv : function( w, jQ ){ var self = _tsmSlackChromeExt;
+  	unsetPopEnv : function(){ _tsmSlackHelper.popWin = null; _tsmSlackHelper.jQ = null; },
+  	setPopEnv : function( w, jQ ){ var self = _tsmSlackHelper;
   		self.popWin = w; self.jQ = jQ;
   		self.oncePerSession(jQ);
   		self.displayPanel( self.active.panel );
@@ -589,8 +602,7 @@ var _tsmSlackChromeExt = {
   		matches : 0, //total match count
   		mentions : 0, //total @mention count
   		directs : 0, //total IMs
-  		chromeTab : {},
-  		//lastpanel : '', //for peripheral panel cancel buttons, go back to the right place
+  		chromeTab : {},//chrome.tabs.get tab object
   		profile : '', //user id, blank is just default
   		convo : 'C0458GXEA', //defailt to slack-project-1 //convo id, for reply page
   		chrome : true, //is chrome active?
@@ -732,5 +744,5 @@ var _tsmSlackChromeExt = {
 		return results;
 	}
 };
-_tsmSlackChromeExt.authorize();
-chrome.idle.onStateChanged.addListener( function (state) { _tsmSlackChromeExt.onChromeStateChange(state); });
+_tsmSlackHelper.authorize();
+chrome.idle.onStateChanged.addListener( function (state) { _tsmSlackHelper.onChromeStateChange(state); });
