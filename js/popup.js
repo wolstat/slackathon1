@@ -38,6 +38,10 @@
 			bg.log("RTM START "+JSON.stringify(bg.rtm)+" RTM END");
 		});
 
+		$('body').on('click', '#checkWss', function(e){
+			bg.checkWss();
+		});
+
 		$('body').on('click', '#oauth2', function(e){
 			bg.getToken();
 		});
