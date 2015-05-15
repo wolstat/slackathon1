@@ -42,6 +42,10 @@
 			bg.checkWss();
 		});
 
+		$('body').on('click', '#getUsers', function(e){
+			bg.getUsers();
+		});
+
 		$('body').on('click', '#oauth2', function(e){
 			bg.getToken();
 		});
@@ -66,12 +70,22 @@
 		$('body').on('click', '#chromeTab', function(e){
 			bg.log(JSON.stringify(bg.active.chromeTab));
 		});
-		
+
+		$('body').on('click', '#fixMessage', function(e){
+			var foo = {"type":"message","channel":"G03C6T9RW","user":"U034YTEQK","text":"the <@U034YTEQK> is in the top left","ts":"1430357905.001376","team":"T033GCPL1"};
+			bg.fixMessage(foo);
+		});
+
+
 ////////END QA BUTTONS
 
 
 		$('body').on('click', '#clearPrefs', function(e){
 			bg.clearPrefs();
+		});
+
+		$('body').on('click', '#restartWss', function(e){
+			bg.restartWss();
 		});
 
 		$('body').on('click', '#start-session', function(e){

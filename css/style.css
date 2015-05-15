@@ -157,6 +157,13 @@ nav.nav{
   top:20px;
   right:9px;
 }
+body.preauth nav.nav span.convo,
+body.preauth nav.nav span.users,
+body.init nav.nav span.convo,
+body.init nav.nav span.users{
+	display:none;
+}
+
 nav.nav span{
 	color:rgb(126, 106, 162);
 	height:18px;
@@ -421,14 +428,22 @@ section legend{
 section#prefs main article{
 	display:none;
 }
-section#prefs main.preauth .authorize,
-section#prefs main.init .connect,
-section#prefs main.active .detail{
+
+body.preauth section#prefs .authorize,
+body.init section#prefs .connect,
+body.active section#prefs .detail{
 	display:block;
 }
+
 section#profile button,
 section#prefs button{
 	clear:left;
+}
+section#prefs button.danger{
+	clear:none;
+	float:right;
+	background:#C13;
+	margin:0 0 15px 15px;
 }
 section#reply .message textarea{
 	width:100%;

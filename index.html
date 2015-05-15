@@ -63,11 +63,13 @@
       <dt>Logged in to:</dt><dd><a class="team" target="_blank"></a></dd>
       <dt>Highlight words</dt><dd><a class="highlight_words" target="_blank"></a></dd>
       </dl>
-      <button id="clearPrefs" class="btn btn-primary">De-Authorize</button>
+      <button id="restartWss" class="btn btn-primary">Refresh Session</button>
+      <button id="clearPrefs" class="btn btn-primary danger">De-Authorize</button>
+      <!-- button id="fixMessage" class="btn btn-primary">fixMessage</button -->
       </article><!-- detail -->
 
       <article class="authorize">
-        <p>This extension does not yet have permission to access Slack.</p>
+        <p>This extension does not have permission to access Slack.</p>
         <button id="oauth2" class="btn btn-primary">Grant Permission</button>
         <!-- p>Or paste your Slack Auth Token below to log in with this extension, and then click 'Connect'.</p-->
       </article><!-- authorize -->
@@ -183,6 +185,7 @@
       <h2>QA</h2>
     </header>
     <main>
+      <button id="getUsers" class="btn btn-primary">getUsers</button>
       <button id="logRTM" class="btn btn-primary">log RTM</button>
 
       <button id="checkWss" class="btn btn-primary">checkWss</button>

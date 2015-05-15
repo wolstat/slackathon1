@@ -19,108 +19,101 @@ var _tsmSlackHelper = {
 			self.log('authorize prefs: '+JSON.stringify(prefs));
 			if ( typeof prefs !== 'undefined' && prefs.authToken && prefs.authToken !== null ) {
 				self.prefs.authToken = prefs.authToken;
-				self.startWss( prefs.authToken );
+				self.newSession();
+				self.startWss();
 			}
 		});
 	},
+	slackSecret : "221412fde9c004a1ddc7ddede9f0ceb7",
+	chromeId : "dcjhmokcdfafldjdiddhckfnkfkbklkm", //chrome.runtime.id //chrome web store ID
+	slackId : "3118431681.4197732086", //ID to access Slack API
+	extId : chrome.runtime.id,
+	// https://api.slack.com/docs/oauth
+	// https://developer.chrome.com/apps/identity#method-launchWebAuthFlow
+	// https://api.slack.com/methods/oauth.access
 	getToken : function(){ var self = this; //launchWebAuthFlow
 		self.log("getToken called");
-		var chromeId = self.chromeId;	
+		//getAuthToken
+		//new Error('getToken called');
+		var chromeId = self.chromeId;
+		var state = self.extId;
+		var uri = encodeURI("https://nbmelpjiocjfgbkomjebhcodoklhhgmj.chromiumapp.org/");
 	    var authUrl = "https://slack.com/oauth/authorize?" +
 	        "client_id=" + self.slackId +
-	        "&scope=identify,read,post,client";
-	    chrome.identity.launchWebAuthFlow({url: authUrl, interactive: true},
-	        function(responseUrl) {
-				self.log("responseUrl:"+responseUrl);
-				if (responseUrl) {
-					var tempCode = self.getQueryVariable(responseUrl, 'code');
-					console.log("tempCode:"+tempCode);
-					self.tokenRequest = $.ajax({
-						url: self.apiUrl+"oauth.access",
-						type: "get",
-						data:  {
-							client_id:self.slackId,
-							client_secret:self.slackSecret,
-							code:tempCode
-						},
-						dataType: "json",
-						error: function( response ){
-							self.log("tokenRequest error response "+JSON.stringify(response));
-							self.updateStatus('unauthorized');  //error handling, bad token, service unavailable, etc.
-						},
-						success: function( response ){
-							self.log("tokenRequest success response "+JSON.stringify(response));
-							if ( response.access_token ) {
-								self.saveAuth( response );
-								self.startWss();
-							}
-						}
-					});
-				}
+	    	//"&redirect_uri=" + uri +
+	        "&scope=identify,read,post,client";//&state="+state;
+	    chrome.identity.launchWebAuthFlow({'url': authUrl, 'interactive': true}, function(responseUrl) {
+			self.log("getToken authUrl:"+authUrl+"\n\nresponseUrl:"+responseUrl);
+			if (responseUrl) {
+				var tempCode = self.getQueryVariable(responseUrl, 'code');
+				var data = {
+					client_id:self.slackId,
+					client_secret:self.slackSecret,
+					//redirect_uri:uri,
+					code:tempCode
+				};
+				//self.log("getToken data:"+JSON.stringify(data));
+				self.slackApi("oauth.access", data, function(response){
+					//self.log('getToken slackApi response: '+JSON.stringify( response ));
+					if ( response.ok === false ) {
+						self.updateStatus('unauthorized');
+						new Error('unauthorized');
+						return;
+					} else if ( response.access_token ) {
+						self.saveAuth( response );
+						self.startWss();
+					}
+				});
+			}
 	    });
 	},
-	startWss : function( token ){ var self = this;
-		if ( typeof token == undefined ) self.authorize;
-		self.updateStatus('init');
-		self.unsetPopEnv();//init with null values
-		self.wss = null;
-		self.rtm = {};
-		var token = token || self.prefs.authToken;
-		self.log("startWss called token:"+token);
-		self.rtmRequest = $.ajax({
-			url: self.apiUrl+"rtm.start",
-			type: "get",
-			data:  {token:token},
-			dataType: "json",
-			error: function( response ){
-				self.log("startWss error response"+response);
-				self.updateStatus('unauthorized'); 
-			}, //error handling, bad token, service unavailable, etc.
-			success: function( response ){
-				if ( response.ok === false ) {
-					self.log('startWss ok:false response: '+JSON.stringify( response ));
-					self.updateStatus('unauthorized');
-					return;
-				}
-				self.newPanel('users');
-				self.rtm = response;
-				self.dee.self = self.rtm.self,
-				self.dee.team = self.rtm.team,
-				self.dee.usermeta = {},
-				self.dee.convometa = {},
-				//self.rtm.convos = [],
-				self.dee.messages = [],
-				self.rtm.state = {},///match/mention
-				self.userdata = self.getObjectItem( self.rtm.users, self.rtm.self.id );
-				self.importUsers(); //do users before convos
-				self.importConvos();
-				self.wss = new window.WebSocket( response.url ); //wss
-				self.wss.onopen = self.wssOnOpen;
-				self.wss.onclose = self.wssOnClose;
-				self.wss.onerror = self.wssOnError;
-				self.wss.onmessage = self.wssOnEvent;
-				self.teamDomain = 'https://'+self.rtm.team.domain+'.slack.com/';
+	startWss : function(){ var self = this;
+		self.log("startWss called");
+		self.slackApi("rtm.start", {}, function(response){
+			if ( response.ok === false ) {
+				self.log('startWss ok:false response: '+JSON.stringify( response ));
+				self.updateStatus('unauthorized');
+				return;
 			}
+			//self.log("startWss response:"+JSON.stringify(response.users));
+			self.newPanel('users');
+			self.rtm = response;//this is the big init chunk of rtm session data
+			self.dee.self = self.rtm.self,
+			self.dee.team = self.rtm.team,
+			self.dee.usermeta = {},
+			self.dee.convometa = {},
+			self.dee.messages = [],
+			self.userdata = self.getObjectItem( self.rtm.users, self.rtm.self.id );
+			self.importUsers(); //do users before convos
+			self.importConvos();
+			self.wss = new window.WebSocket( response.url ); //wss
+			self.wss.onopen = self.wssOnOpen;
+			self.wss.onclose = self.wssOnClose;
+			self.wss.onerror = self.wssOnError;
+			self.wss.onmessage = self.wssOnEvent;
+			self.teamDomain = 'https://'+self.rtm.team.domain+'.slack.com/';
 		});
 	},
 ///////////// SESSION STUFF
 	wssOnOpen : function () { var self = _tsmSlackHelper;
 	    self.log("wssOnOpen");
 		self.updateStatus('connected');
+		self.has.connection = true;
 		setTimeout(function(){ self.updateStatus('message'); }, 2000); //clear connected badge display
 	},
 	wssOnClose : function () { var self = _tsmSlackHelper;
 	    self.log("wssOnClose");
-    	self.shutdown();
+    	self.newSession();//reset vars
 		self.updateStatus('disconnected');
 		self.newPanel('prefs');
+		self.has.connection = false;
 	    //self.checkWss();
 	},
 	wssOnError : function () { var self = _tsmSlackHelper;
-		//_tsmSlackHelper.updateStatus('disconnected');
-		//_tsmSlackHelper.newPanel('prefs');
+		//self.updateStatus('disconnected');
+		//self.newPanel('prefs');
 	    self.log("wssOnError");
-		//_tsmSlackHelper.checkWss(); //wrap this in some logic to prevent infinite error loop
+		//self.checkWss(); //wrap this in some logic to prevent infinite error loop
 	},
 	wssOnEvent : function (evt) { var self = _tsmSlackHelper;
 	    var eObj = $.parseJSON(evt.data);
@@ -136,7 +129,8 @@ var _tsmSlackHelper = {
 			self.panelRefresh('convo');
 			self.updateStatus('message');
 	    } else if ( eObj.type === 'presence_change' ) {
-	    	self.updateObject(self.rtm.users, eObj, 'user');
+	    	self.updateObject(self.dee.usermeta, eObj, 'user');
+	    	self.panelRefresh('users');
 	    	//re-sortUsers();
 	    } else if ( eObj.type === 'channel_joined' || eObj.type === 'im_created' || eObj.type === 'group_joined' ) {
 	    	self.newConvo( eObj.channel );
@@ -147,10 +141,8 @@ var _tsmSlackHelper = {
 	},
 	wssClose : function(){ var self = this;
 		self.log('wssClose');
-		this.wss.onclose = function () {}; // disable onclose handler first
-    	self.wss.close();
-    	self.shutdown();
 		self.updateStatus('logout');			
+    	self.newSession();
 	},
 	wssSend : function(obj){ var self = _tsmSlackHelper;
 		self.log('wssSend '+JSON.stringify(obj) );
@@ -164,10 +156,20 @@ var _tsmSlackHelper = {
 		}
 		return true;
 	},
-	shutdown : function(){
+	newSession : function(){ var self = this;
+		if (self.wss ) {
+			self.wss.onclose = function () {}; // disable onclose handler first
+	    	self.wss.close();
+			self.has.connection = false;
+	    	delete self.wss;//sockets session
+	    }
     	delete self.rtm;//session data
     	delete self.dee;//operating metadata
-    	delete self.wss;//sockets session
+		self.unsetPopEnv();//init with null values
+		self.wss = null;
+		self.rtm = {};
+		self.dee = {};//users, convos
+		self.updateStatus('init');
 	},
 	onChromeStateChange : function( state ){ var self = _tsmSlackHelper;
 		self.log('onChromeStateChange: '+state);
@@ -181,24 +183,64 @@ var _tsmSlackHelper = {
 	},
 	checkWss: function(){ var self = _tsmSlackHelper; //self.wss.readyState will still equal 1 for a dead connection
 		self.log('checkWss called');
-		var pingts = Date.now(), pingdata = {id: self.active.ping, type: "ping", ts:pingts},
-			loopct = 0; self.active.ping++; //ping ids need to be unique
-		if ( !( self.wssSend(pingdata) ) ) return;
-		self.waitForPong = setInterval( function(){//wait for pong in case of timeout
-			if ( loopct > 12 ) {
-				self.restartWss();
-				clearInterval( self.waitForPong );
-			} else if (self.active.pong === pingts) { //pong callback happened with same ts
-				clearInterval( self.waitForPong );
-			}
-			loopct++;
-		}, 400);
+		if (self.has.connection === true) {
+			var pingts = Date.now(), pingdata = {type: "ping", id: self.active.ping, ts:pingts},
+				loopct = 0; self.active.ping++; //ping ids need to be unique
+			if ( !( self.wssSend(pingdata) ) ) return;
+			self.waitForPong = setInterval( function(){//wait for pong in case of timeout
+				if ( loopct > 12 ) {
+					self.restartWss();
+					clearInterval( self.waitForPong );
+				} else if (self.active.pong === pingts) { //pong callback happened with same ts
+					clearInterval( self.waitForPong );
+				}
+				loopct++;
+			}, 400);
+		}
 	},
+	getPresence : function(user){ var self = this;
+		self.log("getPresence");
+		var data = { user: user };
+		self.slackApi("users.getPresence", data, function(response){
+			self.log("getPresence response:"+JSON.stringify(response))
+			if ( response.ok ) {
+				data.presence = response.presence;
+	    		self.updateObject( self.dee.usermeta, data, 'user' );
+	    	}
+		});
+	},
+	//restoring a stale session, user statuses get way out of sync
+  	getUsers : function(){ var self = this;
+		self.slackApi("users.list", {}, function(response){
+			self.log("getUsers response:"+JSON.stringify(response))
+		});
+  	},
+  	postMessage : function(msg){ var self = _tsmSlackHelper;
+  		var data = {"as_user":true,"type":"message","channel":self.active.convo,"text":msg};
+		self.log("postMessage: "+data);
+		self.slackApi("chat.postMessage", data, function(response){
+			self.log("postMessage response:"+JSON.stringify(response))
+		});
+  	},
+	apiUrl : "https://slack.com/api/",
+  	slackApi: function(method, data, cb){ var self = this;
+  		if (self.prefs.authToken) data.token = self.prefs.authToken;
+  		var url = self.apiUrl+method;
+  		self.log('slackApi call to self.prefs.authToken '+self.prefs.authToken+" \n\n"+url+' \n\ndata:'+JSON.stringify(data));
+		var request = $.ajax({
+				url: url,
+				type: "get",
+				data:  data,
+				dataType: "json"
+			}).done( function(response){
+				cb(response);
+			});
+  	},
 ///////////SLACK CLIENT
 	updateStatus : function ( state ) { var self = this;
 		self.log('updateStatus state:'+state);
 		self.has.auth = self.statuses[state].hasAuth;
-		if (self.statuses[state].prefclass) self.newPrefsClass( self.statuses[state].prefclass );
+		if (self.statuses[state].stateclass) self.newBodyClass( self.statuses[state].stateclass );
 		self.active.state = state;
 		if (self.statuses[state].panel) self.newPanel( self.statuses[state].panel );
 		self.updateAlertCounts();			
@@ -245,6 +287,7 @@ var _tsmSlackHelper = {
   			//self.log( uObj[u].id + " : " +uObj[u].deleted + " : " +uObj[u].profile.email )
 			self.dee.usermeta[uid] = {
 				id : uid,
+				user : uid,
 				channel : "",
   				real_name : uObj[u].real_name || uObj[u].name,
   				name : uObj[u].name,
@@ -296,9 +339,9 @@ var _tsmSlackHelper = {
         	message.text = message.attachments.text;
         	self.log("markConvo message.subtype "+ message.subtype);
         }//group_leave
-        if (message.text) { //pesky bot messages
-			self.dee.messages.push(message);
-			var activeConvo = self.dee.convometa[ message.channel ];
+		var activeConvo = self.dee.convometa[ message.channel ];
+        if (message.text && typeof activeConvo === 'object') { //pesky bot messages
+			self.dee.messages.push(message); //self.fixMessage( message );
 			if ( inc && message.user !== self.dee.self.id ) activeConvo.unread++;
 	  		var highlights = self.rtm.self.prefs.highlight_words.split(',');
 	  		for (word in highlights) { if ( message.text.indexOf( highlights[word].trim() ) !== -1 ) {
@@ -306,8 +349,18 @@ var _tsmSlackHelper = {
 	  		}}
 	  		if ( message.text.indexOf( '<@'+self.dee.self.id+'>' ) !== -1 ) {
 				activeConvo.mention++; type = 'mention';
-	  		}
+	  		} else { self.log("markConvo failed for "+JSON.stringify(message));}
   		}
+	},
+	//replace meta text with display tags
+	fixMessage : function ( message ){ var self = this;
+		var U = self.dee.usermeta[ message.user ];
+		var mention = "<@([0-9A-Z])+>";
+		var re = new RegExp(mention, 'g');
+
+		message.text = message.text.replace(re, '<span data-uid="'+$1+'">@'+U.name+'</span>');
+		console.log(message.text);
+		//self.dee.messages.push(message);
 	},
   	// pull all messages from a read channel out of queue
 	unmarkConvo : function( obj ){ var self = this;
@@ -324,22 +377,6 @@ var _tsmSlackHelper = {
   		self.dee.convometa[ channel ].match = 0;
   		self.dee.convometa[ channel ].mention = 0;
   	},
-  	//check message for any filter matches or <@uid> mentions
-  	urgencyCheck : function( message, convo ){ var self = this;
-        self.log("urgencyCheck convo:"+convo);
-  		var highlights = self.rtm.self.prefs.highlight_words.split(','), 
-  		type = 'message', 
-  		activeConvo = self.dee.convometa[ convo ];//match, im, mention
-		if ( inc && message.user !== self.dee.self.id ) activeConvo.unread++;
-  		for (word in highlights) { if ( message.text.indexOf( highlights[word].trim() ) !== -1 ) {
-			activeConvo.match++; type = 'match';
-  		}}
-  		if ( message.text.indexOf( '<@'+self.dee.self.id+'>' ) !== -1 ) {
-			activeConvo.mention++; type = 'mention';
-  		}
-		//self.updateStatus(type);
-		//self.makeUrgentState();
-  	},
 ///// EXT UI
   	clickConvo : function ( convo ){ var self = _tsmSlackHelper;
   		//does convo have more unreads than messages in the queue? fetch history from slack?
@@ -352,7 +389,9 @@ var _tsmSlackHelper = {
 		}
   	},
   	clickUser : function ( user ){ var self = _tsmSlackHelper;
-		this.log('clickUser self.active.profile = '+JSON.stringify(self.dee.usermeta[ user ]));
+		this.log('clickUser '+user);
+		//this.log('clickUser self.active.profile = '+JSON.stringify(self.dee.usermeta[ user ]));
+  		//self.getPresence(user);//update presence
   		var panel = 'reply', u = self.dee.usermeta[ user ], C = self.dee.convometa;
 		//this.log('clickUser u.channel '+u.channel+ " - "+C[ u.channel ]);
 		//xthis.log('clickConvo all convos '+JSON.stringify(this.rtm.convos));
@@ -371,29 +410,17 @@ var _tsmSlackHelper = {
   		//self.log('newPanel: '+panel);
   		self.active.panel = panel;
   	},
-  	postMessage : function(msg){ var self = _tsmSlackHelper;
-  		var data = {"as_user":true,"type":"message","channel":self.active.convo,"text":msg};
-		self.log("postMessage: "+data);
-		var request = $.ajax({
-			url: "https://slack.com/api/chat.postMessage?token="+self.prefs.authToken,
-			type: "get",
-			data:  data,
-			dataType: "json"
-		}).done( function(response){
-			console.log("postMessage response:"+JSON.stringify(response))
-		});
-  	},
 /////////// HTML FUNCTIONS
-  	newPrefsClass : function ( prefclass ) { var self = _tsmSlackHelper;
-  		//self.log('newPrefsClass: '+prefclass);
-  		var prefclass = prefclass || self.active.prefclass;
+  	newBodyClass : function ( stateclass ) { var self = _tsmSlackHelper;
+  		//self.log('newBodycLass: '+stateclass);
+  		var stateclass = stateclass || self.active.stateclass;
   		if ( this.popEnv() ) {
 			var jQ = self.jQ;
 			if ( typeof jQ === 'function' ) {
-  				jQ('section#prefs').find('main').attr('class', prefclass);
+  				jQ('body').attr('class', stateclass);
   			}
   		}
-  		self.active.prefclass = prefclass;
+  		self.active.stateclass = stateclass;
   	},
   	// set active panel while popup IS open
 	displayPanel : function( clicked ){ var self = _tsmSlackHelper;
@@ -514,7 +541,7 @@ var _tsmSlackHelper = {
   					//self.active.profile = '';//clear out value
 					break;
 				case "prefs":
-					self.newPrefsClass();
+					self.newBodyClass();
 					jQ('nav.nav span.'+panel).addClass('selected');//what is this?
 					if ( self.has.auth ) {
 						jQ('section#prefs').find('.uname').html(self.rtm.self.name);
@@ -597,6 +624,7 @@ var _tsmSlackHelper = {
   		{n: 'ims', i: 'D', s: '@'}
   	],
   	cPrefix : {'C':'#', 'G':'&gt;', 'D':'@'}, //convo id initials
+  	//hasAuth : false, //is current session authorized
   	has : { //new state object
   		auth : false, //is current session authorized
   		connection : false,
@@ -618,20 +646,15 @@ var _tsmSlackHelper = {
   		chrome : true, //is chrome active?
   		state : 'preauth', //this is the h1 class on the prefs panel
   		panel : 'prefs', //unread, team, settings, (reply, groups, channels) //default panel in popup
-  		prefclass : 'preauth' //show correct <article> on the prefs panel
+  		stateclass : 'preauth' //show correct content with CSS using body.stateclass
   	},
   	dee : {}, //main obj for data storage
-  	hasAuth : false, //is current session authorized
-	apiUrl : "https://slack.com/api/", 
-	slackId : "3118431681.4197732086", //ID to access Slack API
-	slackSecret : "a89093c067275195b42b7a478d9f7edf",
-	chromeId : "dcjhmokcdfafldjdiddhckfnkfkbklkm", //chrome web store ID
   	prefs : { //save whole object directly to localStorage.prefs
 		authToken : null,
 	},
 	statuses : {
 		preauth:{
-			prefclass : 'preauth',
+			stateclass : 'preauth',
 			hasAuth : false,
 			panel:'prefs',
 			message:'Click Connect to give this app permission to access your Slack account',
@@ -639,7 +662,7 @@ var _tsmSlackHelper = {
 			text:'.'
 		},
 		init:{
-			prefclass : 'init',
+			stateclass : 'init',
 			hasAuth : false,
 			panel:'prefs',
 			message:'Initializing...',
@@ -647,7 +670,7 @@ var _tsmSlackHelper = {
 			text:'...'
 		},
 		badsession:{
-			prefclass : 'preauth',
+			stateclass : 'preauth',
 			hasAuth : false,
 			panel:'prefs',
 			message:'Unable to Auth',
@@ -655,7 +678,7 @@ var _tsmSlackHelper = {
 			text:'!:!'
 		},
 		logout:{
-			prefclass : 'preauth',
+			stateclass : 'preauth',
 			hasAuth : false,
 			panel:'prefs',
 			message:'Your session has timed out',
@@ -663,7 +686,7 @@ var _tsmSlackHelper = {
 			text:'!'
 		},
 		badtoken:{
-			prefclass : 'preauth',
+			stateclass : 'preauth',
 			hasAuth : false,
 			panel:'prefs',
 			message:'Invalid token',
@@ -671,7 +694,7 @@ var _tsmSlackHelper = {
 			text:'!#!'
 		},
 		unauthorized:{
-			prefclass : 'preauth',
+			stateclass : 'preauth',
 			hasAuth : false,
 			panel:'prefs',
 			message:'Auth has failed',
@@ -679,7 +702,7 @@ var _tsmSlackHelper = {
 			text:'!!!'
 		},
 		disconnected:{
-			prefclass : 'preauth',
+			stateclass : 'preauth',
 			hasAuth : false,
 			panel:'prefs',
 			message:'Unable to Auth',
@@ -687,7 +710,7 @@ var _tsmSlackHelper = {
 			text:'!!'
 		},
 		connected:{
-			prefclass : 'active',
+			stateclass : 'active',
 			hasAuth : true,
 			//panel:'prefs',
 			message:'Connected to Slack',
@@ -695,7 +718,7 @@ var _tsmSlackHelper = {
 			text:'+'
 		},
 		message:{
-			prefclass : 'active',
+			stateclass : 'active',
 			hasAuth : true,
 			panel:'convo',
 			message:'Unread message',
@@ -712,6 +735,7 @@ var _tsmSlackHelper = {
   		return d.toLocaleTimeString();
   		//d.toLocaleTimeString()
   	},
+  	//self.updateObject(self.dee.usermeta, eObj, 'user');
 	updateObject : function(obj, payload, matchField){ //update obj where obj.matchField === payload.matchField
 		var mKey = matchField || 'id'; //defaults to id
 		var l, k;
@@ -719,7 +743,7 @@ var _tsmSlackHelper = {
 			for (k in payload) {
 				obj[l][k] = payload[k];
 			}
-			this.log("updateObj new line:"+JSON.stringify( obj[l] ) );
+			//this.log("updateObject "+matchField+"="+obj[l][mKey]+" - "+JSON.stringify( obj[l] ) );
 			break;
 		}}
 	},
