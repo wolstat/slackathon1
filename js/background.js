@@ -16,7 +16,7 @@ var _tsmSlackHelper = {
 		self.manifest = chrome.runtime.getManifest();
 		self.getPrefs( function(result) {
 			var prefs = result.prefs;
-			self.log('authorize prefs: '+JSON.stringify(prefs));
+			self.log('authorize prefs: '+JSON.stringify(prefs) + " chrome.runtime.id"+chrome.runtime.id);
 			if ( typeof prefs !== 'undefined' && prefs.authToken && prefs.authToken !== null ) {
 				self.prefs.authToken = prefs.authToken;
 				self.newSession();
@@ -24,19 +24,20 @@ var _tsmSlackHelper = {
 			}
 		});
 	},
-	slackSecret : "221412fde9c004a1ddc7ddede9f0ceb7",
-	chromeId : "dcjhmokcdfafldjdiddhckfnkfkbklkm", //chrome.runtime.id //chrome web store ID
-	slackId : "3118431681.4197732086", //ID to access Slack API
-	extId : chrome.runtime.id,
+	chromeId : chrome.runtime.id,//chrome web store ID or local dev package ID
+	slackSecret : ( chrome.runtime.id = "dcjhmokcdfafldjdiddhckfnkfkbklkm" ) ? 
+		"221412fde9c004a1ddc7ddede9f0ceb7" : //prod
+		"3843e14c1d87b1ccffff7d55df93fba5", //dev
+	slackId : ( chrome.runtime.id = "dcjhmokcdfafldjdiddhckfnkfkbklkm" ) ? 
+		"3118431681.4197732086" : //prod
+		"3118431681.4928258605", //dev
 	// https://api.slack.com/docs/oauth
 	// https://developer.chrome.com/apps/identity#method-launchWebAuthFlow
 	// https://api.slack.com/methods/oauth.access
 	getToken : function(){ var self = this; //launchWebAuthFlow
 		self.log("getToken called");
-		//getAuthToken
-		//new Error('getToken called');
 		var chromeId = self.chromeId;
-		var state = self.extId;
+		var state = self.chromeId;
 		var uri = encodeURI("https://nbmelpjiocjfgbkomjebhcodoklhhgmj.chromiumapp.org/");
 	    var authUrl = "https://slack.com/oauth/authorize?" +
 	        "client_id=" + self.slackId +
@@ -159,12 +160,12 @@ var _tsmSlackHelper = {
 	newSession : function(){ var self = this;
 		if (self.wss ) {
 			self.wss.onclose = function () {}; // disable onclose handler first
-	    	self.wss.close();
+			self.wss.close();
 			self.has.connection = false;
-	    	delete self.wss;//sockets session
-	    }
-    	delete self.rtm;//session data
-    	delete self.dee;//operating metadata
+			delete self.wss;//sockets session
+		}
+		delete self.rtm;//session data
+		delete self.dee;//operating metadata
 		self.unsetPopEnv();//init with null values
 		self.wss = null;
 		self.rtm = {};
@@ -196,7 +197,7 @@ var _tsmSlackHelper = {
 				}
 				loopct++;
 			}, 400);
-		}
+		} else { self.restartWss(); }
 	},
 	getPresence : function(user){ var self = this;
 		self.log("getPresence");

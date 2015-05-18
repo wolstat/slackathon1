@@ -2,7 +2,7 @@
   "name": "TSM Slack helper",
   "short_name": "SlackHelper",
   "description": "Keep track of the number and type of unread messages in Slack",
-  "version": "0.18",
+  "version": "0.19",
   "manifest_version": 2,
   "homepage_url": "https://github.com/wolstat/slackathon1",
   "author":"Adrian Borromeo, Jack Nealy, Michael Wolstat, Jonathan Zee",
